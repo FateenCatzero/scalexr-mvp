@@ -104,7 +104,6 @@ export default function ItemDetailClient({
             glbUrl={glbAsset.public_url}
             usdzUrl={usdzAsset?.public_url ?? undefined}
             itemName={item.name}
-            poster={item.image_url ?? undefined}
           />
         ) : (
           <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-muted">

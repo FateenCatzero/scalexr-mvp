@@ -7,7 +7,6 @@ interface ModelViewerProps {
   glbUrl: string
   usdzUrl?: string
   itemName: string
-  poster?: string
 }
 
 const CDN_URL =
@@ -24,7 +23,7 @@ export function loadModelViewerScript() {
   document.head.appendChild(s)
 }
 
-export default function ModelViewer({ glbUrl, itemName, poster }: ModelViewerProps) {
+export default function ModelViewer({ glbUrl, itemName }: ModelViewerProps) {
   const mvRef = useRef<ModelViewerElement>(null)
   const [progress, setProgress] = useState(0)
   const [loaded, setLoaded] = useState(false)
@@ -58,7 +57,6 @@ export default function ModelViewer({ glbUrl, itemName, poster }: ModelViewerPro
       <model-viewer
         ref={mvRef}
         src={glbUrl}
-        poster={poster}
         camera-controls
         title={itemName}
         shadow-intensity="1"
@@ -70,19 +68,24 @@ export default function ModelViewer({ glbUrl, itemName, poster }: ModelViewerPro
         auto-rotate-delay="500"
         rotation-per-second="30deg"
       />
-      {!loaded && (
-        <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-1.5 pb-4 pointer-events-none">
-          <p className="text-xs text-muted-foreground font-medium">
-            {progress > 0 ? `Loading 3D model… ${progress}%` : 'Loading 3D model…'}
-          </p>
-          <div className="w-40 h-1 bg-muted-foreground/20 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-primary rounded-full transition-all duration-200"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+
+      {/* Loading overlay — solid background so no image bleeds through */}
+      <div
+        className={`absolute inset-0 bg-muted flex flex-col items-center justify-center gap-3 transition-opacity duration-500 ${
+          loaded ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        }`}
+      >
+        <div className="w-8 h-8 rounded-full border-2 border-muted-foreground/20 border-t-primary animate-spin" />
+        <p className="text-xs text-muted-foreground font-medium tabular-nums">
+          {progress > 0 ? `Loading 3D model… ${progress}%` : 'Loading 3D model…'}
+        </p>
+        <div className="w-40 h-1 bg-muted-foreground/20 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-primary rounded-full transition-all duration-200"
+            style={{ width: `${progress}%` }}
+          />
         </div>
-      )}
+      </div>
     </div>
   )
 }
