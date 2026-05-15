@@ -22,7 +22,7 @@ export default async function MasterAdminLayout({
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/admin/login')
+  if (!user) redirect('/admin/login?returnTo=/admin/master')
 
   const { data: profile } = await supabase
     .from('users')

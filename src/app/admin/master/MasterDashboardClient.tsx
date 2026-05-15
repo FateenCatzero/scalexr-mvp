@@ -5,19 +5,23 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
-  Plus, ExternalLink, Power, PowerOff, Check, X, Store,
-  ShoppingBag, TrendingUp, Activity,
+  Plus, Power, PowerOff, Check, X, Store,
+  Users, CalendarPlus, ShoppingBag, Settings, LayoutDashboard, Eye,
 } from 'lucide-react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
+import { Textarea } from '@/components/ui/textarea'
 import { formatPrice } from '@/lib/utils'
 import {
   useMasterRestaurants,
   useMasterCreateRestaurant,
   useMasterToggleRestaurant,
+  useMasterUpdateRestaurant,
+  useMasterPlatformStats,
 } from '@/lib/queries/master'
 import type { RestaurantWithStats } from '@/lib/types'
 
@@ -40,20 +44,37 @@ const slugify = (s: string) =>
 
 export default function MasterDashboardClient() {
   const { data: restaurants = [], isLoading } = useMasterRestaurants()
+  const { data: stats } = useMasterPlatformStats()
   const [adding, setAdding] = useState(false)
-
-  const totalActive = restaurants.filter((r) => r.is_active).length
-  const totalRevenue = restaurants.reduce((s, r) => s + r.revenue, 0)
-  const totalOrders = restaurants.reduce((s, r) => s + r.orderCount, 0)
 
   return (
     <div className="px-4 pt-6 space-y-6 pb-6">
-      {/* Global stats */}
+      {/* Platform stats */}
       <div className="grid grid-cols-2 gap-3">
-        <StatCard icon={<Store className="w-4 h-4" />} label="Total restaurants" value={restaurants.length} />
-        <StatCard icon={<Activity className="w-4 h-4" />} label="Active" value={totalActive} />
-        <StatCard icon={<ShoppingBag className="w-4 h-4" />} label="Total orders" value={totalOrders} />
-        <StatCard icon={<TrendingUp className="w-4 h-4" />} label="Total revenue" value={`PKR ${totalRevenue.toLocaleString()}`} />
+        <StatCard
+          icon={<Store className="w-4 h-4" />}
+          label="Total clients"
+          value={stats?.totalRestaurants ?? '—'}
+          sub={stats ? `${stats.activeRestaurants} active` : undefined}
+        />
+        <StatCard
+          icon={<Users className="w-4 h-4" />}
+          label="Active now"
+          value={stats?.activeRestaurants ?? '—'}
+          sub={stats ? `${(stats.totalRestaurants ?? 0) - (stats.activeRestaurants ?? 0)} suspended` : undefined}
+        />
+        <StatCard
+          icon={<ShoppingBag className="w-4 h-4" />}
+          label="Orders today"
+          value={stats?.ordersToday ?? '—'}
+          sub="across all restaurants"
+        />
+        <StatCard
+          icon={<CalendarPlus className="w-4 h-4" />}
+          label="New this month"
+          value={stats?.newThisMonth ?? '—'}
+          sub="new restaurants"
+        />
       </div>
 
       {/* Restaurant list header */}
@@ -202,14 +223,43 @@ function CreateRestaurantForm({
 
 // ─── RESTAURANT CARD ──────────────────────────────────────────────────────────
 
+const settingsSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  description: z.string().optional(),
+})
+type SettingsValues = z.infer<typeof settingsSchema>
+
 function RestaurantCard({ restaurant: r }: { restaurant: RestaurantWithStats }) {
   const toggle = useMasterToggleRestaurant()
+  const update = useMasterUpdateRestaurant()
   const [confirming, setConfirming] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [settingsSaved, setSettingsSaved] = useState(false)
 
   const handleToggle = async () => {
     if (!confirming && r.is_active) { setConfirming(true); return }
     await toggle.mutateAsync({ id: r.id, is_active: !r.is_active })
     setConfirming(false)
+  }
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isDirty },
+  } = useForm<SettingsValues>({
+    resolver: zodResolver(settingsSchema),
+    defaultValues: { name: r.name, description: r.description ?? '' },
+  })
+
+  const onSettingsSave = async (values: SettingsValues) => {
+    await update.mutateAsync({
+      id: r.id,
+      updates: { name: values.name, description: values.description || null },
+    })
+    reset(values)
+    setSettingsSaved(true)
+    setTimeout(() => setSettingsSaved(false), 3000)
   }
 
   return (
@@ -228,7 +278,54 @@ function RestaurantCard({ restaurant: r }: { restaurant: RestaurantWithStats }) 
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">/r/{r.slug}</p>
         </div>
+        <button
+          onClick={() => { setShowSettings((v) => !v); setConfirming(false) }}
+          className={[
+            'flex items-center justify-center w-8 h-8 rounded-lg border transition-colors shrink-0',
+            showSettings
+              ? 'border-primary/40 bg-primary/10 text-primary'
+              : 'border-border hover:bg-muted text-muted-foreground',
+          ].join(' ')}
+          title="Restaurant settings"
+        >
+          <Settings className="w-3.5 h-3.5" />
+        </button>
       </div>
+
+      {/* Inline settings panel */}
+      {showSettings && (
+        <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Settings</p>
+          <div className="space-y-1">
+            <Label className="text-xs">Restaurant name</Label>
+            <Input className="h-8 text-sm" {...register('name')} />
+            {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Description <span className="text-muted-foreground">(optional)</span></Label>
+            <Textarea className="text-sm resize-none" rows={2} {...register('description')} />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Menu URL</Label>
+            <div className="rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-muted-foreground font-mono select-all">
+              /r/{r.slug}
+            </div>
+          </div>
+          {update.isError && (
+            <p className="text-xs text-destructive">
+              {(update.error as Error)?.message ?? 'Failed to save'}
+            </p>
+          )}
+          <Button
+            size="sm"
+            className="w-full"
+            onClick={handleSubmit(onSettingsSave)}
+            disabled={update.isPending || !isDirty}
+          >
+            {update.isPending ? 'Saving…' : settingsSaved ? <><Check className="w-3.5 h-3.5 inline mr-1" />Saved!</> : 'Save settings'}
+          </Button>
+        </div>
+      )}
 
       {/* Stats row */}
       <div className="flex gap-4 text-xs text-muted-foreground">
@@ -259,21 +356,20 @@ function RestaurantCard({ restaurant: r }: { restaurant: RestaurantWithStats }) 
         </div>
       ) : (
         <div className="flex gap-2">
-          <a
+          <Link
             href={`/admin/${r.slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
             className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors"
           >
-            <ExternalLink className="w-3.5 h-3.5" /> View admin
-          </a>
+            <LayoutDashboard className="w-3.5 h-3.5" /> Admin dashboard
+          </Link>
           <a
             href={`/r/${r.slug}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors"
+            title="Open the public customer-facing menu"
           >
-            <ExternalLink className="w-3.5 h-3.5" /> View menu
+            <Eye className="w-3.5 h-3.5" /> Customer menu
           </a>
           <button
             onClick={handleToggle}
@@ -302,16 +398,19 @@ function StatCard({
   icon,
   label,
   value,
+  sub,
 }: {
   icon: React.ReactNode
   label: string
   value: number | string
+  sub?: string
 }) {
   return (
     <div className="rounded-xl border border-border bg-card px-3 py-3 flex flex-col gap-1">
       <div className="text-muted-foreground">{icon}</div>
       <p className="text-xl font-bold leading-tight">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-xs font-medium text-foreground/80">{label}</p>
+      {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
     </div>
   )
 }

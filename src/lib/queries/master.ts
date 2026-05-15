@@ -23,6 +23,46 @@ async function logAction(
   } catch { /* fire and forget */ }
 }
 
+export type PlatformStats = {
+  totalRestaurants: number
+  activeRestaurants: number
+  ordersToday: number
+  newThisMonth: number
+}
+
+export function useMasterPlatformStats() {
+  return useQuery({
+    queryKey: ['master', 'stats'],
+    queryFn: async (): Promise<PlatformStats> => {
+      const supabase = createClient()
+      const now = new Date()
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+
+      const [restaurantsRes, ordersTodayRes, newThisMonthRes] = await Promise.all([
+        supabase.from('restaurants').select('id, is_active'),
+        supabase
+          .from('orders')
+          .select('id', { count: 'exact', head: true })
+          .gte('created_at', todayStart),
+        supabase
+          .from('restaurants')
+          .select('id', { count: 'exact', head: true })
+          .gte('created_at', monthStart),
+      ])
+
+      const restaurants = restaurantsRes.data ?? []
+      return {
+        totalRestaurants: restaurants.length,
+        activeRestaurants: restaurants.filter((r) => r.is_active).length,
+        ordersToday: ordersTodayRes.count ?? 0,
+        newThisMonth: newThisMonthRes.count ?? 0,
+      }
+    },
+    refetchInterval: 30_000,
+  })
+}
+
 // ─── RESTAURANTS ──────────────────────────────────────────────────────────────
 
 export function useMasterRestaurants() {
@@ -94,6 +134,30 @@ export function useMasterToggleRestaurant() {
     },
     onSuccess: (_, vars) => {
       logAction(vars.is_active ? 'activate_restaurant' : 'suspend_restaurant', {}, vars.id)
+      qc.invalidateQueries({ queryKey: ['master'] })
+    },
+  })
+}
+
+export function useMasterUpdateRestaurant() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      id,
+      updates,
+    }: {
+      id: string
+      updates: { name?: string; description?: string | null }
+    }) => {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('restaurants')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: (_, vars) => {
+      logAction('update_restaurant', vars.updates as Record<string, unknown>, vars.id)
       qc.invalidateQueries({ queryKey: ['master'] })
     },
   })
