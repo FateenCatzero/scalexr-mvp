@@ -36,6 +36,21 @@ export default function ItemDetailClient({
     setIsIOS(/iPhone|iPad|iPod/i.test(navigator.userAgent))
   }, [])
 
+  // Preload the GLB as soon as the item page opens so it's browser-cached
+  // by the time the user taps "View in 3D"
+  useEffect(() => {
+    if (!glbAsset?.public_url) return
+    const link = document.createElement('link')
+    link.rel = 'preload'
+    link.as = 'fetch'
+    link.href = glbAsset.public_url
+    link.crossOrigin = 'anonymous'
+    document.head.appendChild(link)
+    return () => {
+      if (document.head.contains(link)) document.head.removeChild(link)
+    }
+  }, [glbAsset?.public_url])
+
   const addItem = useCartStore((s) => s.addItem)
   const updateQuantity = useCartStore((s) => s.updateQuantity)
   const cartItem = useCartStore((s) =>
@@ -106,6 +121,7 @@ export default function ItemDetailClient({
             glbUrl={glbAsset.public_url}
             usdzUrl={usdzAsset?.public_url ?? undefined}
             itemName={item.name}
+            poster={item.image_url ?? undefined}
           />
         ) : (
           <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-muted">

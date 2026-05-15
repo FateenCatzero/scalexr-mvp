@@ -20,6 +20,7 @@ type ModelViewerProps = React.HTMLAttributes<ModelViewerElement> & React.RefAttr
   loading?: string
   'min-camera-orbit'?: string
   reveal?: string
+  poster?: string
 }
 
 declare global {
