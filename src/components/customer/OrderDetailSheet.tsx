@@ -125,6 +125,12 @@ export default function OrderDetailSheet({ orderId, open, onClose }: OrderDetail
               <span>Total</span>
               <span>{formatPrice(Number(order.total_amount))}</span>
             </div>
+
+            {order.status === 'pending' && (
+              <p className="text-xs text-muted-foreground text-center mt-4 leading-relaxed">
+                A waiter will be with you in a moment to confirm your order, thank you for your patience.
+              </p>
+            )}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground py-4 text-center">Order not found.</p>
