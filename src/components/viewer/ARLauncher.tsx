@@ -3,10 +3,8 @@
 import { useEffect, useRef } from 'react'
 import { Scan } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-
-interface ModelViewerEl extends HTMLElement {
-  activateAR(): void
-}
+import { loadModelViewerScript } from '@/components/viewer/ModelViewer'
+import type { ModelViewerElement } from '@/types/model-viewer'
 
 interface ARLauncherProps {
   glbUrl: string
@@ -15,10 +13,10 @@ interface ARLauncherProps {
 }
 
 export default function ARLauncher({ glbUrl, usdzUrl, itemName }: ARLauncherProps) {
-  const mvRef = useRef<ModelViewerEl>(null)
+  const mvRef = useRef<ModelViewerElement>(null)
 
   useEffect(() => {
-    import('@google/model-viewer')
+    loadModelViewerScript()
   }, [])
 
   const handleAR = () => {

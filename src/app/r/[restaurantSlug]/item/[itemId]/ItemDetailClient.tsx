@@ -13,6 +13,7 @@ import CartSheet from '@/components/cart/CartSheet'
 import { useCartStore } from '@/lib/store/cartStore'
 import { formatPrice } from '@/lib/utils'
 import type { MenuItemWithAssets } from '@/lib/types'
+import type { ModelViewerElement } from '@/types/model-viewer'
 
 const ModelViewer = dynamic(
   () => import('@/components/viewer/ModelViewer'),
@@ -32,7 +33,7 @@ export default function ItemDetailClient({
   const [cartOpen, setCartOpen] = useState(false)
   const [justAdded, setJustAdded] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
-  const arRef = useRef<HTMLElement & { activateAR(): void }>(null)
+  const arRef = useRef<ModelViewerElement>(null)
 
   useEffect(() => {
     setIsIOS(/iPhone|iPad|iPod/i.test(navigator.userAgent))
@@ -193,7 +194,7 @@ export default function ItemDetailClient({
       {/* Hidden model-viewer powers AR activation for both iOS (Quick Look) and Android (Scene Viewer) */}
       {showAR && glbAsset?.public_url && (
         <model-viewer
-          ref={arRef as React.RefObject<HTMLElement>}
+          ref={arRef}
           src={glbAsset.public_url}
           ios-src={usdzAsset?.public_url ?? ''}
           ar
