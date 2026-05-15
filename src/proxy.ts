@@ -25,6 +25,7 @@ export async function proxy(request: NextRequest) {
     }
   )
 
+  // Refreshes expired token and writes updated cookies — must stay first.
   const { data: { user } } = await supabase.auth.getUser()
 
   const path = request.nextUrl.pathname
@@ -34,12 +35,30 @@ export async function proxy(request: NextRequest) {
     if (!user) {
       const loginUrl = request.nextUrl.clone()
       loginUrl.pathname = '/admin/login'
+      loginUrl.searchParams.set('returnTo', path)
       return NextResponse.redirect(loginUrl)
     }
   }
 
-  // Redirect logged-in users away from login page
+  // Redirect already-authenticated users away from the login page
   if (path === '/admin/login' && user) {
+    const returnTo = request.nextUrl.searchParams.get('returnTo')
+
+    // Check role first — master_admin doesn't have a restaurant_users row
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role === 'master_admin') {
+      const dest = request.nextUrl.clone()
+      dest.pathname = returnTo && returnTo.startsWith('/admin/') ? returnTo : '/admin/master'
+      dest.search = ''
+      return NextResponse.redirect(dest)
+    }
+
+    // Restaurant admin — find their restaurant slug
     const { data } = await supabase
       .from('restaurant_users')
       .select('restaurants(slug)')
@@ -48,9 +67,10 @@ export async function proxy(request: NextRequest) {
     const r = Array.isArray(data?.restaurants) ? data.restaurants[0] : data?.restaurants
     const slug = (r as { slug: string } | null)?.slug
     if (slug) {
-      const adminUrl = request.nextUrl.clone()
-      adminUrl.pathname = `/admin/${slug}`
-      return NextResponse.redirect(adminUrl)
+      const dest = request.nextUrl.clone()
+      dest.pathname = returnTo && returnTo.startsWith(`/admin/${slug}`) ? returnTo : `/admin/${slug}`
+      dest.search = ''
+      return NextResponse.redirect(dest)
     }
   }
 
