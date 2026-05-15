@@ -58,6 +58,7 @@ export default function ModelViewer({ glbUrl, itemName }: ModelViewerProps) {
         ref={mvRef}
         src={glbUrl}
         camera-controls
+        disable-pan
         title={itemName}
         shadow-intensity="1"
         min-camera-orbit="auto auto 5%"

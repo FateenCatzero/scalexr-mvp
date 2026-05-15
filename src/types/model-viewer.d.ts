@@ -19,6 +19,7 @@ type ModelViewerProps = React.HTMLAttributes<ModelViewerElement> & React.RefAttr
   'rotation-per-second'?: string
   loading?: string
   'min-camera-orbit'?: string
+  'disable-pan'?: boolean | string
   reveal?: string
   poster?: string
 }
