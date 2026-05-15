@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { ArrowLeft, Box, Check, Minus, Plus } from 'lucide-react'
@@ -41,6 +41,16 @@ export default function ItemDetailClient({
 
   const glbAsset = item.item_assets.find((a) => a.asset_type === 'model_glb')
   const usdzAsset = item.item_assets.find((a) => a.asset_type === 'model_usdz')
+
+  // Preload GLB as soon as the page mounts so it's ready when the user taps View in 3D
+  useEffect(() => {
+    const url = glbAsset?.public_url
+    if (url) {
+      import('@react-three/drei').then(({ useGLTF }) => {
+        useGLTF.preload(url)
+      })
+    }
+  }, [glbAsset?.public_url])
 
   const handleAdd = () => {
     addItem(item)

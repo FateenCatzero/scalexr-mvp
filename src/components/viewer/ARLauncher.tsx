@@ -1,7 +1,12 @@
 'use client'
 
-import { Button } from '@/components/ui/button'
+import { useEffect, useRef } from 'react'
 import { Scan } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+
+interface ModelViewerEl extends HTMLElement {
+  activateAR(): void
+}
 
 interface ARLauncherProps {
   glbUrl: string
@@ -10,37 +15,37 @@ interface ARLauncherProps {
 }
 
 export default function ARLauncher({ glbUrl, usdzUrl, itemName }: ARLauncherProps) {
-  const isIOS =
-    typeof navigator !== 'undefined' &&
-    /iPhone|iPad|iPod/i.test(navigator.userAgent)
+  const mvRef = useRef<ModelViewerEl>(null)
 
-  if (isIOS && usdzUrl) {
-    return (
-      <a rel="ar" href={usdzUrl} className="block w-full">
-        <Button variant="outline" className="w-full gap-1.5">
-          <Scan className="w-4 h-4" />
-          View in AR
-        </Button>
-      </a>
-    )
+  useEffect(() => {
+    import('@google/model-viewer')
+  }, [])
+
+  const handleAR = () => {
+    mvRef.current?.activateAR()
   }
 
-  // Android Scene Viewer intent
-  const intentUrl = [
-    `intent://arvr.google.com/scene-viewer/1.0`,
-    `?file=${encodeURIComponent(glbUrl)}`,
-    `&mode=ar_preferred`,
-    `&title=${encodeURIComponent(itemName)}`,
-    `#Intent;scheme=https;package=com.google.ar.core;`,
-    `action=android.intent.action.VIEW;end;`,
-  ].join('')
-
   return (
-    <a href={intentUrl} className="block w-full">
-      <Button variant="outline" className="w-full gap-1.5">
+    <div className="relative w-full">
+      {/* Hidden model-viewer — handles all AR launch logic */}
+      {/* @ts-expect-error model-viewer is a web component registered at runtime */}
+      <model-viewer
+        ref={mvRef}
+        src={glbUrl}
+        ios-src={usdzUrl ?? ''}
+        ar
+        ar-modes="scene-viewer quick-look webxr"
+        title={itemName}
+        style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}
+      />
+      <Button
+        variant="outline"
+        className="w-full gap-1.5"
+        onClick={handleAR}
+      >
         <Scan className="w-4 h-4" />
         View in AR
       </Button>
-    </a>
+    </div>
   )
 }
