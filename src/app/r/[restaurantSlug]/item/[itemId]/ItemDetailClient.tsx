@@ -36,6 +36,16 @@ export default function ItemDetailClient({
     setIsIOS(/iPhone|iPad|iPod/i.test(navigator.userAgent))
   }, [])
 
+  const glbAsset = item.item_assets.find((a) => a.asset_type === 'model_glb')
+  const usdzAsset = item.item_assets.find((a) => a.asset_type === 'model_usdz')
+
+  const addItem = useCartStore((s) => s.addItem)
+  const updateQuantity = useCartStore((s) => s.updateQuantity)
+  const cartItem = useCartStore((s) =>
+    s.items.find((i) => i.menuItem.id === item.id)
+  )
+  const quantity = cartItem?.quantity ?? 0
+
   // Preload the GLB as soon as the item page opens so it's browser-cached
   // by the time the user taps "View in 3D"
   useEffect(() => {
@@ -50,16 +60,6 @@ export default function ItemDetailClient({
       if (document.head.contains(link)) document.head.removeChild(link)
     }
   }, [glbAsset?.public_url])
-
-  const addItem = useCartStore((s) => s.addItem)
-  const updateQuantity = useCartStore((s) => s.updateQuantity)
-  const cartItem = useCartStore((s) =>
-    s.items.find((i) => i.menuItem.id === item.id)
-  )
-  const quantity = cartItem?.quantity ?? 0
-
-  const glbAsset = item.item_assets.find((a) => a.asset_type === 'model_glb')
-  const usdzAsset = item.item_assets.find((a) => a.asset_type === 'model_usdz')
 
   const handleAdd = () => {
     addItem(item)
