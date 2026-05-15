@@ -12,6 +12,7 @@ import CartSheet from '@/components/cart/CartSheet'
 import { useCartStore } from '@/lib/store/cartStore'
 import { formatPrice } from '@/lib/utils'
 import type { MenuItemWithAssets } from '@/lib/types'
+import { trackEvent } from '@/lib/analytics'
 
 const ModelViewer = dynamic(
   () => import('@/components/viewer/ModelViewer'),
@@ -35,6 +36,10 @@ export default function ItemDetailClient({
   useEffect(() => {
     setIsIOS(/iPhone|iPad|iPod/i.test(navigator.userAgent))
   }, [])
+
+  useEffect(() => {
+    trackEvent(item.restaurant_id, 'item_view', { item_id: item.id, item_name: item.name })
+  }, [item.id, item.name, item.restaurant_id])
 
   const glbAsset = item.item_assets.find((a) => a.asset_type === 'model_glb')
   const usdzAsset = item.item_assets.find((a) => a.asset_type === 'model_usdz')
@@ -67,10 +72,15 @@ export default function ItemDetailClient({
     setTimeout(() => setJustAdded(false), 1500)
   }
 
-  const handleView3D = () => setShow3D((v) => !v)
+  const handleView3D = () => {
+    const next = !show3D
+    setShow3D(next)
+    if (next) trackEvent(item.restaurant_id, '3d_view', { item_id: item.id, item_name: item.name })
+  }
 
   const handleARAndroid = () => {
     if (!glbAsset?.public_url) return
+    trackEvent(item.restaurant_id, 'ar_view', { item_id: item.id, item_name: item.name })
     const intentUrl = [
       'intent://arvr.google.com/scene-viewer/1.0',
       `?file=${encodeURIComponent(glbAsset.public_url)}`,

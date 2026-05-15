@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
-import type { AssetType, Category, ItemAsset, MenuItem, Restaurant } from '@/lib/types'
+import type { AnalyticsEvent, AssetType, Category, ItemAsset, MenuItem, Restaurant, RestaurantTable } from '@/lib/types'
 
 // ─── STATS ────────────────────────────────────────────────────────────────────
 
@@ -377,6 +377,130 @@ export function useDeleteModel() {
     onSuccess: ({ menuItemId }) => {
       queryClient.invalidateQueries({ queryKey: ['item-assets', menuItemId] })
       queryClient.invalidateQueries({ queryKey: ['all-item-assets'] })
+    },
+  })
+}
+
+// ─── ANALYTICS ────────────────────────────────────────────────────────────────
+
+export type AnalyticsPeriod = 'today' | 'week' | 'month'
+
+function getAnalyticsPeriodStart(period: AnalyticsPeriod): Date {
+  const d = new Date()
+  if (period === 'today') {
+    d.setHours(0, 0, 0, 0)
+  } else if (period === 'week') {
+    d.setDate(d.getDate() - 6)
+    d.setHours(0, 0, 0, 0)
+  } else {
+    d.setDate(d.getDate() - 29)
+    d.setHours(0, 0, 0, 0)
+  }
+  return d
+}
+
+export function useAnalytics(restaurantId: string, period: AnalyticsPeriod = 'today') {
+  return useQuery({
+    queryKey: ['analytics', restaurantId, period],
+    queryFn: async () => {
+      const supabase = createClient()
+      const since = getAnalyticsPeriodStart(period).toISOString()
+
+      const { data, error } = await supabase
+        .from('analytics_events')
+        .select('event_type, payload, created_at')
+        .eq('restaurant_id', restaurantId)
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      const events = (data ?? []) as Pick<AnalyticsEvent, 'event_type' | 'payload' | 'created_at'>[]
+
+      const counts: Record<string, number> = {}
+      const itemCounts: Record<string, { name: string; ar: number; views3d: number; views: number }> = {}
+
+      for (const ev of events) {
+        counts[ev.event_type] = (counts[ev.event_type] ?? 0) + 1
+        const itemId = ev.payload?.item_id as string | undefined
+        const itemName = ev.payload?.item_name as string | undefined
+        if (itemId && itemName) {
+          if (!itemCounts[itemId]) itemCounts[itemId] = { name: itemName, ar: 0, views3d: 0, views: 0 }
+          if (ev.event_type === 'ar_view') itemCounts[itemId].ar++
+          if (ev.event_type === '3d_view') itemCounts[itemId].views3d++
+          if (ev.event_type === 'item_view') itemCounts[itemId].views++
+        }
+      }
+
+      const topItems = Object.entries(itemCounts)
+        .map(([id, v]) => ({ id, ...v }))
+        .sort((a, b) => (b.ar + b.views3d) - (a.ar + a.views3d))
+        .slice(0, 10)
+
+      const menuViews = counts['menu_view'] ?? 0
+      const itemViews = counts['item_view'] ?? 0
+      const arViews = counts['ar_view'] ?? 0
+      const views3d = counts['3d_view'] ?? 0
+      const arRate = itemViews > 0 ? Math.round((arViews / itemViews) * 100) : 0
+
+      return { menuViews, itemViews, arViews, views3d, arRate, topItems }
+    },
+    enabled: !!restaurantId,
+  })
+}
+
+// ─── RESTAURANT TABLES ────────────────────────────────────────────────────────
+
+export function useRestaurantTables(restaurantId: string) {
+  return useQuery({
+    queryKey: ['restaurant-tables', restaurantId],
+    queryFn: async () => {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('restaurant_tables')
+        .select('*')
+        .eq('restaurant_id', restaurantId)
+        .eq('is_active', true)
+        .order('table_number', { ascending: true })
+      if (error) throw error
+      return data as RestaurantTable[]
+    },
+    enabled: !!restaurantId,
+  })
+}
+
+export function useCreateTable() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ restaurantId, tableNumber }: { restaurantId: string; tableNumber: string }) => {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('restaurant_tables')
+        .insert({ restaurant_id: restaurantId, table_number: tableNumber })
+        .select()
+        .single()
+      if (error) throw error
+      return data as RestaurantTable
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['restaurant-tables', data.restaurant_id] })
+    },
+  })
+}
+
+export function useDeleteTable() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, restaurantId }: { id: string; restaurantId: string }) => {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('restaurant_tables')
+        .update({ is_active: false })
+        .eq('id', id)
+      if (error) throw error
+      return restaurantId
+    },
+    onSuccess: (restaurantId) => {
+      queryClient.invalidateQueries({ queryKey: ['restaurant-tables', restaurantId] })
     },
   })
 }

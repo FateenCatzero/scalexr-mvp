@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ClipboardList } from 'lucide-react'
+import { trackEvent } from '@/lib/analytics'
 import MobileShell from '@/components/layout/MobileShell'
 import MenuGrid from '@/components/menu/MenuGrid'
 import CartButton from '@/components/cart/CartButton'
@@ -22,6 +23,10 @@ export default function MenuPageClient({
   const [cartOpen, setCartOpen] = useState(false)
   const [ordersOpen, setOrdersOpen] = useState(false)
   const { orders } = useOrderStore()
+
+  useEffect(() => {
+    trackEvent(restaurant.id, 'menu_view', { restaurant_slug: restaurant.slug })
+  }, [restaurant.id, restaurant.slug])
   const restaurantOrderCount = orders.filter(
     (o) => o.restaurantSlug === restaurant.slug
   ).length

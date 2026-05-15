@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, UtensilsCrossed, Settings, LogOut } from 'lucide-react'
+import { LayoutDashboard, UtensilsCrossed, Settings, LogOut, BarChart2, QrCode } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface AdminNavProps {
@@ -16,6 +16,8 @@ export default function AdminNav({ restaurantSlug }: AdminNavProps) {
   const tabs = [
     { label: 'Dashboard', href: `/admin/${restaurantSlug}`, icon: LayoutDashboard },
     { label: 'Menu', href: `/admin/${restaurantSlug}/menu`, icon: UtensilsCrossed },
+    { label: 'Analytics', href: `/admin/${restaurantSlug}/analytics`, icon: BarChart2 },
+    { label: 'Tables', href: `/admin/${restaurantSlug}/tables`, icon: QrCode },
     { label: 'Settings', href: `/admin/${restaurantSlug}/settings`, icon: Settings },
   ]
 

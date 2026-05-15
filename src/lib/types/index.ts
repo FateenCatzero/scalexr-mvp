@@ -55,6 +55,14 @@ export type MenuItem = {
 
 export type MenuItemWithAssets = MenuItem & { item_assets: ItemAsset[] }
 
+export type AnalyticsEvent = {
+  id: string
+  restaurant_id: string | null
+  event_type: string
+  payload: Record<string, unknown>
+  created_at: string
+}
+
 export type RestaurantTable = {
   id: string
   restaurant_id: string
