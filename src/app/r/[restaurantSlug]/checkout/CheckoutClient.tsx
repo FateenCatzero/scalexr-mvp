@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -63,6 +64,7 @@ export default function CheckoutClient({
     })
     clearCart()
     addOrder({ id: order.id, restaurantSlug, createdAt: order.created_at })
+    toast.success('Order placed! Awaiting confirmation.')
     router.push(`/r/${restaurantSlug}/order/${order.id}`)
   }
 

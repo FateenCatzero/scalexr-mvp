@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { CheckCircle2, Clock, ChefHat, Bell, Package } from 'lucide-react'
+import { toast } from 'sonner'
 import MobileShell from '@/components/layout/MobileShell'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useOrder } from '@/lib/queries/orders'
@@ -60,6 +61,18 @@ const PROGRESS_STEPS: OrderStatus[] = [
 export default function OrderStatusPage() {
   const params = useParams<{ restaurantSlug: string; orderId: string }>()
   const { data: order, isLoading, refetch } = useOrder(params.orderId)
+  const prevStatus = useRef<OrderStatus | null>(null)
+
+  useEffect(() => {
+    if (!order) return
+    const prev = prevStatus.current
+    if (prev !== null && prev !== order.status) {
+      if (order.status === 'confirmed') toast.success('Order confirmed!')
+      else if (order.status === 'preparing') toast('Kitchen is now preparing your order.')
+      else if (order.status === 'ready') toast.success('Your order is ready!')
+    }
+    prevStatus.current = order.status
+  }, [order?.status])
 
   useEffect(() => {
     const supabase = createClient()
