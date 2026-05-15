@@ -75,16 +75,16 @@ export default function WaiterClient({ restaurant }: WaiterClientProps) {
             onEdit={() => setEditingOrder(order)}
             actions={[
               {
-                label: 'Confirm',
-                loading: updateStatus.isPending,
-                onClick: () => updateStatus.mutate({ orderId: order.id, status: 'confirmed' }),
-              },
-              {
                 label: 'Cancel',
                 variant: 'danger',
                 loading: updateStatus.isPending,
                 requireConfirm: true,
                 onClick: () => updateStatus.mutate({ orderId: order.id, status: 'cancelled' }),
+              },
+              {
+                label: 'Confirm',
+                loading: updateStatus.isPending,
+                onClick: () => updateStatus.mutate({ orderId: order.id, status: 'confirmed' }),
               },
             ]}
           />
