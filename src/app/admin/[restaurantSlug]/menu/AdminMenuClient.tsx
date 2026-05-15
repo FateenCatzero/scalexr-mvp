@@ -372,8 +372,8 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
                 }
               </button>
 
-              {/* Inline edit form */}
-              {isExpanded && !isConfirmingDelete && (
+              {/* Inline edit form — always visible when expanded */}
+              {isExpanded && (
                 <>
                   <InlineItemForm
                     restaurantId={restaurant.id}
@@ -385,39 +385,51 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
                     submitLabel="Save changes"
                     itemId={item.id}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setConfirmDeleteId(item.id)}
-                    className="mt-2 w-full text-xs text-destructive flex items-center justify-center gap-1.5 py-1.5 rounded-lg hover:bg-destructive/10 transition-colors"
-                  >
-                    <Trash2 className="w-3 h-3" /> Delete item
-                  </button>
-                </>
-              )}
 
-              {/* Delete confirm */}
-              {isConfirmingDelete && (
-                <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
-                  <p className="flex-1 text-xs text-destructive font-medium">
-                    Delete &ldquo;{item.name}&rdquo;?
-                  </p>
-                  <button
-                    onClick={() => setConfirmDeleteId(null)}
-                    className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => {
-                      deleteItem.mutate({ id: item.id, restaurantId: restaurant.id })
-                      setConfirmDeleteId(null)
-                      setExpandedId(null)
-                    }}
-                    className="text-xs px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
-                  >
-                    Delete
-                  </button>
-                </div>
+                  {/* Delete button swaps to confirm row in-place */}
+                  {isConfirmingDelete ? (
+                    <div className="mt-2 flex items-center gap-2 border-t border-border pt-2">
+                      <p className="flex-1 text-xs text-destructive font-medium">
+                        Delete &ldquo;{item.name}&rdquo;?
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await deleteItem.mutateAsync({ id: item.id, restaurantId: restaurant.id })
+                            setConfirmDeleteId(null)
+                            setExpandedId(null)
+                          } catch {
+                            // error shown below
+                          }
+                        }}
+                        className="text-xs px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteId(item.id)}
+                      className="mt-2 w-full text-xs text-destructive flex items-center justify-center gap-1.5 py-1.5 rounded-lg hover:bg-destructive/10 transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" /> Delete item
+                    </button>
+                  )}
+                  {deleteItem.isError && (
+                    <p className="text-xs text-destructive text-center mt-1">
+                      Delete failed. Check permissions and try again.
+                    </p>
+                  )}
+                </>
               )}
             </div>
           )
