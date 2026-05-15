@@ -426,7 +426,7 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
                   )}
                   {deleteItem.isError && (
                     <p className="text-xs text-destructive text-center mt-1">
-                      Delete failed. Check permissions and try again.
+                      {(deleteItem.error as Error)?.message ?? 'Delete failed. Try again.'}
                     </p>
                   )}
                 </>
