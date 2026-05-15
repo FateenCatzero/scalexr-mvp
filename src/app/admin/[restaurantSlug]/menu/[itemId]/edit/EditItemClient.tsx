@@ -3,7 +3,8 @@
 import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import ItemForm, { type ItemFormValues } from '@/components/admin/ItemForm'
-import { useAdminCategories, useUpdateMenuItem } from '@/lib/queries/admin'
+import ModelUpload from '@/components/admin/ModelUpload'
+import { useAdminCategories, useUpdateMenuItem, useItemAssets } from '@/lib/queries/admin'
 import type { MenuItem, Restaurant } from '@/lib/types'
 
 export default function EditItemClient({
@@ -16,6 +17,10 @@ export default function EditItemClient({
   const router = useRouter()
   const { data: categories = [] } = useAdminCategories(restaurant.id)
   const updateItem = useUpdateMenuItem()
+  const { data: assets = [] } = useItemAssets(item.id)
+
+  const glbAsset = assets.find((a) => a.asset_type === 'model_glb')
+  const usdzAsset = assets.find((a) => a.asset_type === 'model_usdz')
 
   const handleSubmit = async (values: ItemFormValues) => {
     await updateItem.mutateAsync({
@@ -41,6 +46,7 @@ export default function EditItemClient({
         </button>
         <h2 className="font-bold text-lg">Edit item</h2>
       </div>
+
       <ItemForm
         restaurantId={restaurant.id}
         categories={categories}
@@ -49,6 +55,35 @@ export default function EditItemClient({
         loading={updateItem.isPending}
         submitLabel="Save changes"
       />
+
+      {/* 3D / AR models — only on edit since we need the item ID */}
+      <div className="px-4 pb-6 space-y-3">
+        <div>
+          <p className="font-semibold text-sm mb-1">3D & AR models</p>
+          <p className="text-xs text-muted-foreground">
+            Upload a GLB file to enable the 3D viewer. Add a USDZ file to also enable AR on iOS.
+          </p>
+        </div>
+        <ModelUpload
+          restaurantId={restaurant.id}
+          menuItemId={item.id}
+          assetType="model_glb"
+          label="GLB model"
+          accept=".glb"
+          hint="3D viewer + Android AR"
+          existing={glbAsset}
+        />
+        <ModelUpload
+          restaurantId={restaurant.id}
+          menuItemId={item.id}
+          assetType="model_usdz"
+          label="USDZ model"
+          accept=".usdz,.reality"
+          hint="iOS AR (optional)"
+          existing={usdzAsset}
+        />
+      </div>
+
       {updateItem.isError && (
         <p className="text-xs text-destructive text-center px-4 pb-4">
           Something went wrong. Please try again.

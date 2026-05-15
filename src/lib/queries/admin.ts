@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
-import type { Category, MenuItem, Restaurant } from '@/lib/types'
+import type { AssetType, Category, ItemAsset, MenuItem, Restaurant } from '@/lib/types'
 
 // ─── STATS ────────────────────────────────────────────────────────────────────
 
@@ -254,4 +254,111 @@ export async function uploadImage(
   if (error) throw error
   const { data } = supabase.storage.from('restaurant-assets').getPublicUrl(path)
   return data.publicUrl
+}
+
+// ─── ITEM ASSETS (3D MODELS) ──────────────────────────────────────────────────
+
+export function useItemAssets(menuItemId: string) {
+  return useQuery({
+    queryKey: ['item-assets', menuItemId],
+    queryFn: async () => {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('item_assets')
+        .select('*')
+        .eq('menu_item_id', menuItemId)
+      if (error) throw error
+      return data as ItemAsset[]
+    },
+    enabled: !!menuItemId,
+  })
+}
+
+export function useUploadModel() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      restaurantId,
+      menuItemId,
+      file,
+      assetType,
+    }: {
+      restaurantId: string
+      menuItemId: string
+      file: File
+      assetType: 'model_glb' | 'model_usdz'
+    }) => {
+      const supabase = createClient()
+      const ext = assetType === 'model_glb' ? 'glb' : 'usdz'
+      const path = `restaurants/${restaurantId}/models/${menuItemId}.${ext}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('restaurant-assets')
+        .upload(path, file, { upsert: true })
+      if (uploadError) throw uploadError
+
+      const { data: urlData } = supabase.storage
+        .from('restaurant-assets')
+        .getPublicUrl(path)
+
+      // Upsert asset record
+      const { error: assetError } = await supabase
+        .from('item_assets')
+        .upsert({
+          menu_item_id: menuItemId,
+          restaurant_id: restaurantId,
+          asset_type: assetType,
+          storage_path: path,
+          public_url: urlData.publicUrl,
+          file_size_bytes: file.size,
+          is_optimized: false,
+          metadata: {},
+        }, { onConflict: 'menu_item_id,asset_type' })
+      if (assetError) throw assetError
+
+      // Update menu item flags
+      const flag = assetType === 'model_glb' ? { has_3d_model: true } : { has_ar: true }
+      const { error: itemError } = await supabase
+        .from('menu_items')
+        .update(flag)
+        .eq('id', menuItemId)
+      if (itemError) throw itemError
+
+      return { menuItemId, assetType: assetType as AssetType, publicUrl: urlData.publicUrl }
+    },
+    onSuccess: ({ menuItemId }) => {
+      queryClient.invalidateQueries({ queryKey: ['item-assets', menuItemId] })
+    },
+  })
+}
+
+export function useDeleteModel() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      asset,
+      menuItemId,
+    }: {
+      asset: ItemAsset
+      menuItemId: string
+    }) => {
+      const supabase = createClient()
+
+      await supabase.storage.from('restaurant-assets').remove([asset.storage_path])
+
+      const { error } = await supabase
+        .from('item_assets')
+        .delete()
+        .eq('id', asset.id)
+      if (error) throw error
+
+      const flag = asset.asset_type === 'model_glb' ? { has_3d_model: false } : { has_ar: false }
+      await supabase.from('menu_items').update(flag).eq('id', menuItemId)
+
+      return { menuItemId, assetType: asset.asset_type }
+    },
+    onSuccess: ({ menuItemId }) => {
+      queryClient.invalidateQueries({ queryKey: ['item-assets', menuItemId] })
+    },
+  })
 }
