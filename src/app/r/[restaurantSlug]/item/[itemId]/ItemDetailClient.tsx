@@ -69,34 +69,17 @@ export default function ItemDetailClient({
 
   const handleView3D = () => setShow3D((v) => !v)
 
-  const handleAR = () => {
-    if (isIOS && usdzAsset?.public_url) {
-      // iOS Quick Look: create <a rel="ar"><img></a> and click it synchronously
-      // within the user gesture so Safari treats it as a real Quick Look trigger
-      const a = document.createElement('a')
-      a.setAttribute('rel', 'ar')
-      a.href = usdzAsset.public_url
-      a.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px'
-      const img = document.createElement('img')
-      img.src = item.image_url ?? ''
-      img.setAttribute('width', '1')
-      img.setAttribute('height', '1')
-      a.appendChild(img)
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-    } else if (!isIOS && glbAsset?.public_url) {
-      // Android: Scene Viewer via intent URL
-      const intentUrl = [
-        'intent://arvr.google.com/scene-viewer/1.0',
-        `?file=${encodeURIComponent(glbAsset.public_url)}`,
-        '&mode=ar_preferred',
-        `&title=${encodeURIComponent(item.name)}`,
-        '#Intent;scheme=https;package=com.google.ar.core;',
-        'action=android.intent.action.VIEW;end;',
-      ].join('')
-      window.location.href = intentUrl
-    }
+  const handleARAndroid = () => {
+    if (!glbAsset?.public_url) return
+    const intentUrl = [
+      'intent://arvr.google.com/scene-viewer/1.0',
+      `?file=${encodeURIComponent(glbAsset.public_url)}`,
+      '&mode=ar_preferred',
+      `&title=${encodeURIComponent(item.name)}`,
+      '#Intent;scheme=https;package=com.google.ar.core;',
+      'action=android.intent.action.VIEW;end;',
+    ].join('')
+    window.location.href = intentUrl
   }
 
   // Show AR button on iOS only if USDZ exists; Android only if GLB exists
@@ -157,15 +140,36 @@ export default function ItemDetailClient({
           )}
 
           {showAR && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAR}
-              className="flex-1 gap-1.5"
-            >
-              <Scan className="w-4 h-4" />
-              View in AR
-            </Button>
+            isIOS ? (
+              // iOS: native <a rel="ar"> so the user taps it directly — no JS
+              // gesture chain that can be silently invalidated by Safari
+              <a
+                rel="ar"
+                href={usdzAsset!.public_url}
+                className="relative flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-md border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                {/* img must be first child for iOS Quick Look — covers button area, invisible */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={item.image_url ?? ''}
+                  alt=""
+                  aria-hidden="true"
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, pointerEvents: 'none' }}
+                />
+                <Scan className="w-4 h-4 relative z-10" />
+                <span className="relative z-10">View in AR</span>
+              </a>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleARAndroid}
+                className="flex-1 gap-1.5"
+              >
+                <Scan className="w-4 h-4" />
+                View in AR
+              </Button>
+            )
           )}
         </div>
       )}
