@@ -141,24 +141,28 @@ export default function ItemDetailClient({
 
           {showAR && (
             isIOS ? (
-              // iOS: native <a rel="ar"> so the user taps it directly — no JS
-              // gesture chain that can be silently invalidated by Safari
-              <a
-                rel="ar"
-                href={usdzAsset!.public_url ?? ''}
-                className="relative flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-md border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
-              >
-                {/* img must be first child for iOS Quick Look — covers button area, invisible */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={item.image_url ?? ''}
-                  alt=""
-                  aria-hidden="true"
-                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, pointerEvents: 'none' }}
-                />
-                <Scan className="w-4 h-4 relative z-10" />
-                <span className="relative z-10">View in AR</span>
-              </a>
+              // iOS Quick Look requires <img> to be the ONLY child of <a rel="ar">.
+              // Extra siblings cause iOS to treat it as a regular link instead.
+              // Solution: visible button is a plain div; the anchor overlays it invisibly.
+              <div className="relative flex-1">
+                <div className="flex items-center justify-center gap-1.5 h-9 px-3 rounded-md border border-input bg-background text-sm font-medium pointer-events-none select-none">
+                  <Scan className="w-4 h-4" />
+                  <span>View in AR</span>
+                </div>
+                <a
+                  rel="ar"
+                  href={usdzAsset!.public_url ?? ''}
+                  style={{ position: 'absolute', inset: 0 }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={item.image_url ?? 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'}
+                    alt=""
+                    aria-hidden="true"
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0 }}
+                  />
+                </a>
+              </div>
             ) : (
               <Button
                 variant="outline"
