@@ -7,7 +7,7 @@ import { loadModelViewerScript } from '@/components/viewer/ModelViewer'
 import type { ModelViewerElement } from '@/types/model-viewer'
 
 interface ARLauncherProps {
-  glbUrl?: string
+  glbUrl: string
   usdzUrl?: string
   itemName: string
 }
@@ -28,7 +28,7 @@ export default function ARLauncher({ glbUrl, usdzUrl, itemName }: ARLauncherProp
       {/* Hidden model-viewer — handles all AR launch logic */}
       <model-viewer
         ref={mvRef}
-        src={glbUrl || usdzUrl || ''}
+        src={glbUrl}
         ios-src={usdzUrl ?? ''}
         ar
         ar-modes="scene-viewer quick-look webxr"
