@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Safe area padding utility for mobile browsers */
+.pb-safe {
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+}
+
 /* Hide browser native password reveal button */
 input::-ms-reveal,
 input::-ms-clear,
