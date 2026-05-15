@@ -93,8 +93,9 @@ export default function OrdersSheet({ open, onClose, restaurantSlug }: OrdersShe
                         </p>
                         <p className="text-xs text-muted-foreground mt-1 truncate">
                           {order.order_items
-                            .map((i: { quantity: number; menu_items: { name: string } | null }) =>
-                              `${i.menu_items?.name ?? 'Deleted item'} ×${i.quantity}`
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            .map((i: any) =>
+                              `${i.menu_items?.name ?? i.menu_items?.[0]?.name ?? 'Deleted item'} ×${i.quantity}`
                             )
                             .join(', ')}
                         </p>
