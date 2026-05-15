@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { Minus, Plus } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -26,12 +25,11 @@ export default function ItemCard({ item, restaurantSlug }: ItemCardProps) {
       <Link href={`/r/${restaurantSlug}/item/${item.id}`}>
         <div className="relative aspect-square bg-muted">
           {item.image_url ? (
-            <Image
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
               src={item.image_url}
               alt={item.name}
-              fill
-              className="object-cover"
-              sizes="(max-width: 448px) 50vw, 224px"
+              className="absolute inset-0 w-full h-full object-cover"
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-xs">

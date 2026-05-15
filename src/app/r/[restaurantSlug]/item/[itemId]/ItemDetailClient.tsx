@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { ArrowLeft, Box, Check, Minus, Plus } from 'lucide-react'
@@ -68,13 +67,11 @@ export default function ItemDetailClient({
         ) : (
           <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-muted">
             {item.image_url ? (
-              <Image
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
                 src={item.image_url}
                 alt={item.name}
-                fill
-                priority
-                className="object-cover"
-                sizes="(max-width: 448px) 100vw, 448px"
+                className="absolute inset-0 w-full h-full object-cover"
               />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">
