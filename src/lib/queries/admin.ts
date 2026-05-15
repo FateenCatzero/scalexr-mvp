@@ -274,6 +274,22 @@ export function useItemAssets(menuItemId: string) {
   })
 }
 
+export function useAllItemAssets(restaurantId: string) {
+  return useQuery({
+    queryKey: ['all-item-assets', restaurantId],
+    queryFn: async () => {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('item_assets')
+        .select('*')
+        .eq('restaurant_id', restaurantId)
+      if (error) throw error
+      return data as ItemAsset[]
+    },
+    enabled: !!restaurantId,
+  })
+}
+
 export function useUploadModel() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -328,6 +344,7 @@ export function useUploadModel() {
     },
     onSuccess: ({ menuItemId }) => {
       queryClient.invalidateQueries({ queryKey: ['item-assets', menuItemId] })
+      queryClient.invalidateQueries({ queryKey: ['all-item-assets'] })
     },
   })
 }
@@ -359,6 +376,7 @@ export function useDeleteModel() {
     },
     onSuccess: ({ menuItemId }) => {
       queryClient.invalidateQueries({ queryKey: ['item-assets', menuItemId] })
+      queryClient.invalidateQueries({ queryKey: ['all-item-assets'] })
     },
   })
 }

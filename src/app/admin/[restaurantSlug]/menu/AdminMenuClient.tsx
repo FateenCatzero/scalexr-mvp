@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Plus, Pencil, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, Box } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -44,6 +44,21 @@ export default function AdminMenuClient({ restaurant }: { restaurant: Restaurant
       ) : (
         <CategoriesTab restaurant={restaurant} />
       )}
+
+      {/* Bulk 3D models shortcut */}
+      <div className="px-4 mt-4">
+        <Link
+          href={`/admin/${restaurant.slug}/menu/models`}
+          className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:bg-muted transition-colors"
+        >
+          <Box className="w-4 h-4 text-muted-foreground" />
+          <div className="flex-1">
+            <p className="font-medium text-sm">3D Models</p>
+            <p className="text-xs text-muted-foreground">Upload GLB & USDZ for all items</p>
+          </div>
+          <span className="text-muted-foreground text-xs">→</span>
+        </Link>
+      </div>
     </div>
   )
 }

@@ -13,6 +13,7 @@ interface ModelUploadProps {
   accept: string
   hint: string
   existing: ItemAsset | undefined
+  compact?: boolean
 }
 
 export default function ModelUpload({
@@ -23,6 +24,7 @@ export default function ModelUpload({
   accept,
   hint,
   existing,
+  compact = false,
 }: ModelUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -44,6 +46,56 @@ export default function ModelUpload({
   const handleDelete = async () => {
     if (!existing) return
     await deleteModel.mutateAsync({ asset: existing, menuItemId })
+  }
+
+  if (compact) {
+    return (
+      <div className="rounded-lg border border-border bg-background p-2.5 space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-medium text-xs">{label}</p>
+            <p className="text-xs text-muted-foreground">{hint}</p>
+          </div>
+          {existing && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleteModel.isPending}
+              className="w-6 h-6 rounded flex items-center justify-center text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+        {existing ? (
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="w-full flex items-center gap-1.5 bg-muted rounded px-2 py-1.5 hover:bg-muted/70 transition-colors"
+          >
+            <Box className="w-3 h-3 text-muted-foreground shrink-0" />
+            <span className="text-xs text-muted-foreground flex-1 text-left truncate">Uploaded</span>
+            <span className="text-xs underline text-muted-foreground shrink-0">Replace</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            className="w-full rounded border-2 border-dashed border-border py-3 flex flex-col items-center gap-1 hover:border-foreground/40 hover:bg-muted/50 transition-colors disabled:opacity-50"
+          >
+            <Upload className="w-4 h-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">
+              {uploading ? 'Uploading…' : 'Upload'}
+            </span>
+          </button>
+        )}
+        <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={handleFile} />
+        {(upload.isError || deleteModel.isError) && (
+          <p className="text-xs text-destructive">Error. Try again.</p>
+        )}
+      </div>
+    )
   }
 
   return (
