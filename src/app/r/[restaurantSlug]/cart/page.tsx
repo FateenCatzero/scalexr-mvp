@@ -88,7 +88,7 @@ export default function CartPage() {
               router.push(`/r/${params.restaurantSlug}/checkout${qs}`)
             }}
           >
-            Proceed to checkout
+            Continue
           </Button>
         </>
       )}

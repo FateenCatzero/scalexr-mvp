@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -16,6 +16,7 @@ import { useOrderStore } from '@/lib/store/orderStore'
 import { useCreateOrder } from '@/lib/queries/orders'
 import { useRestaurant } from '@/lib/queries/restaurant'
 import { formatPrice } from '@/lib/utils'
+import OrderDetailSheet from '@/components/customer/OrderDetailSheet'
 
 const schema = z.object({
   customerName: z.string().min(1, 'Name is required'),
@@ -39,6 +40,7 @@ export default function CheckoutClient({
   const addOrder = useOrderStore((s) => s.addOrder)
   const { data: restaurant } = useRestaurant(restaurantSlug)
   const createOrder = useCreateOrder()
+  const [confirmedOrderId, setConfirmedOrderId] = useState<string | null>(null)
 
   const {
     register,
@@ -64,13 +66,19 @@ export default function CheckoutClient({
     })
     clearCart()
     addOrder({ id: order.id, restaurantSlug, createdAt: order.created_at })
-    toast.success('Order placed! Awaiting confirmation.')
-    router.push(`/r/${restaurantSlug}/order/${order.id}`)
+    toast.success('Order placed!')
+    setConfirmedOrderId(order.id)
   }
 
-  if (items.length === 0) return null
+  if (items.length === 0 && !confirmedOrderId) return null
 
   return (
+    <>
+    <OrderDetailSheet
+      orderId={confirmedOrderId}
+      open={!!confirmedOrderId}
+      onClose={() => router.push(`/r/${restaurantSlug}`)}
+    />
     <MobileShell className="px-4">
       <div className="pt-4 pb-2 flex items-center gap-2">
         <Link
@@ -79,7 +87,7 @@ export default function CheckoutClient({
         >
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <h1 className="text-xl font-bold">Checkout</h1>
+        <h1 className="text-xl font-bold">Place Order</h1>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-5 space-y-4 pb-10">
@@ -160,6 +168,10 @@ export default function CheckoutClient({
             : `Place order — ${formatPrice(getTotal())}`}
         </Button>
 
+        <p className="text-xs text-muted-foreground text-center">
+          A waiter will be with you in a moment to confirm your order, Thankyou for your patience!
+        </p>
+
         {createOrder.isError && (
           <p className="text-sm text-destructive text-center">
             Something went wrong. Please try again.
@@ -167,5 +179,6 @@ export default function CheckoutClient({
         )}
       </form>
     </MobileShell>
+    </>
   )
 }
