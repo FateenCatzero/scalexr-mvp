@@ -82,6 +82,19 @@ export default function AdminLoginPage() {
     }
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setError('Login failed'); setLoading(false); return }
+
+    // Check role — master_admin goes to master dashboard, restaurant_admin to their restaurant
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role === 'master_admin') {
+      router.push('/admin/master')
+      return
+    }
+
     const { data } = await supabase
       .from('restaurant_users')
       .select('restaurants(slug)')

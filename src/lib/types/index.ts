@@ -115,3 +115,32 @@ export type CartItem = {
   quantity: number
   notes?: string
 }
+
+export type UserRole = 'customer' | 'waiter' | 'kitchen' | 'restaurant_admin' | 'master_admin'
+
+export type AppUser = {
+  id: string
+  email: string
+  full_name: string | null
+  avatar_url: string | null
+  role: UserRole
+  created_at: string
+}
+
+export type RestaurantWithStats = Restaurant & {
+  orderCount: number
+  revenue: number
+}
+
+export type AdminLog = {
+  id: string
+  actor_id: string | null
+  restaurant_id: string | null
+  action: string
+  target_table: string | null
+  target_id: string | null
+  payload: Record<string, unknown>
+  created_at: string
+  users?: { email: string } | null
+  restaurants?: { name: string; slug: string } | null
+}
