@@ -106,6 +106,7 @@ function InlineItemForm({
   itemId,
   onRegisterSubmit,
   onUnregisterSubmit,
+  onRegisterReset,
   onDirtyChange,
 }: {
   restaurantId: string
@@ -118,28 +119,35 @@ function InlineItemForm({
   itemId?: string
   onRegisterSubmit?: (submit: () => void) => void
   onUnregisterSubmit?: () => void
+  onRegisterReset?: (reset: () => void) => void
   onDirtyChange?: (isDirty: boolean) => void
 }) {
-  const { register, handleSubmit, control, formState: { errors, isDirty } } = useForm<ItemFormValues>({
+  const savedDefaults = {
+    name: defaultValues?.name ?? '',
+    description: defaultValues?.description ?? '',
+    price: defaultValues?.price ?? 0,
+    category_id: defaultValues?.category_id ?? null,
+    image_url: defaultValues?.image_url ?? null,
+    is_available: defaultValues?.is_available ?? true,
+    is_out_of_stock: defaultValues?.is_out_of_stock ?? false,
+  }
+
+  const { register, handleSubmit, control, reset, formState: { errors, isDirty } } = useForm<ItemFormValues>({
     resolver: zodResolver(itemSchema),
-    defaultValues: {
-      name: defaultValues?.name ?? '',
-      description: defaultValues?.description ?? '',
-      price: defaultValues?.price ?? 0,
-      category_id: defaultValues?.category_id ?? null,
-      image_url: defaultValues?.image_url ?? null,
-      is_available: defaultValues?.is_available ?? true,
-      is_out_of_stock: defaultValues?.is_out_of_stock ?? false,
-    },
+    defaultValues: savedDefaults,
   })
 
-  // Keep a stable ref to the current submit so parent can call it without stale closure
+  // Keep stable refs so parent can call submit/reset without stale closure
   const submitFnRef = useRef<() => void>(() => {})
   submitFnRef.current = () => handleSubmit(onSave)()
+
+  const resetFnRef = useRef<() => void>(() => {})
+  resetFnRef.current = () => reset(savedDefaults)
 
   useEffect(() => {
     if (!itemId) return
     onRegisterSubmit?.(() => submitFnRef.current())
+    onRegisterReset?.(() => resetFnRef.current())
     return () => onUnregisterSubmit?.()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemId])
@@ -147,6 +155,11 @@ function InlineItemForm({
   useEffect(() => {
     onDirtyChange?.(isDirty)
   }, [isDirty, onDirtyChange])
+
+  const handleCancel = () => {
+    reset(savedDefaults)
+    onCancel()
+  }
 
   const { data: assets = [] } = useItemAssets(itemId ?? '')
   const glbAsset = assets.find((a) => a.asset_type === 'model_glb')
@@ -280,7 +293,7 @@ function InlineItemForm({
         <Button type="submit" size="sm" className="flex-1" disabled={loading || !isDirty}>
           {loading ? 'Saving…' : submitLabel}
         </Button>
-        <Button type="button" size="sm" variant="outline" onClick={onCancel}>
+        <Button type="button" size="sm" variant="outline" onClick={handleCancel}>
           Cancel
         </Button>
       </div>
@@ -303,6 +316,7 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
   const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set())
   const [savingAll, setSavingAll] = useState(false)
   const submitRefs = useRef<Map<string, () => void>>(new Map())
+  const resetRefs = useRef<Map<string, () => void>>(new Map())
 
   const handleCreate = async (values: ItemFormValues) => {
     await createItem.mutateAsync({
@@ -336,7 +350,7 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
       const n = new Set(prev)
-      if (n.has(id)) { n.delete(id); submitRefs.current.delete(id) } else n.add(id)
+      if (n.has(id)) n.delete(id); else n.add(id)
       return n
     })
     setConfirmDeleteId(null)
@@ -345,8 +359,12 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
   const handleRegister = (id: string, submit: () => void) => {
     submitRefs.current.set(id, submit)
   }
+  const handleRegisterReset = (id: string, fn: () => void) => {
+    resetRefs.current.set(id, fn)
+  }
   const handleUnregister = (id: string) => {
     submitRefs.current.delete(id)
+    resetRefs.current.delete(id)
     setDirtyIds((prev) => { const n = new Set(prev); n.delete(id); return n })
   }
   const handleDirtyChange = (id: string, dirty: boolean) => {
@@ -355,6 +373,19 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
       if (dirty) n.add(id); else n.delete(id)
       return n
     })
+  }
+
+  // Cancel a single item: reset its form, clear dirty, collapse
+  const handleCancelItem = (id: string) => {
+    resetRefs.current.get(id)?.()
+    setDirtyIds((prev) => { const n = new Set(prev); n.delete(id); return n })
+    setExpandedIds((prev) => { const n = new Set(prev); n.delete(id); return n })
+  }
+
+  // Cancel all: reset every dirty form, clear all dirty state
+  const handleCancelAll = () => {
+    dirtyIds.forEach((id) => resetRefs.current.get(id)?.())
+    setDirtyIds(new Set())
   }
 
   const handleSaveAll = async () => {
@@ -450,25 +481,25 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
                 }
               </button>
 
-              {/* Inline edit form — always visible when expanded */}
-              {isExpanded && (
-                <>
-                  <InlineItemForm
-                    restaurantId={restaurant.id}
-                    categories={categories}
-                    defaultValues={item}
-                    onSave={(values) => handleUpdate(item.id, values)}
-                    onCancel={() => toggleExpand(item.id)}
-                    loading={updateItem.isPending}
-                    submitLabel="Save changes"
-                    itemId={item.id}
-                    onRegisterSubmit={(fn) => handleRegister(item.id, fn)}
-                    onUnregisterSubmit={() => handleUnregister(item.id)}
-                    onDirtyChange={(dirty) => handleDirtyChange(item.id, dirty)}
-                  />
+              {/* Form — always mounted so edits survive accordion close; hidden with CSS */}
+              <div className={isExpanded ? '' : 'hidden'}>
+                <InlineItemForm
+                  restaurantId={restaurant.id}
+                  categories={categories}
+                  defaultValues={item}
+                  onSave={(values) => handleUpdate(item.id, values)}
+                  onCancel={() => handleCancelItem(item.id)}
+                  loading={updateItem.isPending}
+                  submitLabel="Save changes"
+                  itemId={item.id}
+                  onRegisterSubmit={(fn) => handleRegister(item.id, fn)}
+                  onUnregisterSubmit={() => handleUnregister(item.id)}
+                  onRegisterReset={(fn) => handleRegisterReset(item.id, fn)}
+                  onDirtyChange={(dirty) => handleDirtyChange(item.id, dirty)}
+                />
 
-                  {/* Delete button swaps to confirm row in-place */}
-                  {isConfirmingDelete ? (
+                {/* Delete button swaps to confirm row in-place */}
+                {isConfirmingDelete ? (
                     <div className="mt-2 flex items-center gap-2 border-t border-border pt-2">
                       <p className="flex-1 text-xs text-destructive font-medium">
                         Delete &ldquo;{item.name}&rdquo;?
@@ -505,27 +536,33 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
                       <Trash2 className="w-3 h-3" /> Delete item
                     </button>
                   )}
-                  {deleteItem.isError && (
-                    <p className="text-xs text-destructive text-center mt-1">
-                      {(deleteItem.error as Error)?.message ?? 'Delete failed. Try again.'}
-                    </p>
-                  )}
-                </>
-              )}
+                {deleteItem.isError && (
+                  <p className="text-xs text-destructive text-center mt-1">
+                    {(deleteItem.error as Error)?.message ?? 'Delete failed. Try again.'}
+                  </p>
+                )}
+              </div>
             </div>
           )
         })
       )}
 
-      {/* Sticky Save all — appears only when there are unsaved changes */}
+      {/* Sticky Save all / Discard all — appears only when there are unsaved changes */}
       {dirtyIds.size > 0 && (
-        <div className="fixed bottom-20 left-0 right-0 flex justify-center z-20 pointer-events-none">
+        <div className="fixed bottom-20 left-0 right-0 flex justify-center gap-2 z-20 pointer-events-none px-4">
+          <Button
+            variant="outline"
+            onClick={handleCancelAll}
+            className="pointer-events-auto shadow-lg bg-background"
+          >
+            Discard all
+          </Button>
           <Button
             onClick={handleSaveAll}
             disabled={savingAll}
             className="pointer-events-auto shadow-lg gap-2 px-6"
           >
-            {savingAll ? 'Saving…' : `Save all changes (${dirtyIds.size})`}
+            {savingAll ? 'Saving…' : `Save all (${dirtyIds.size})`}
           </Button>
         </div>
       )}
