@@ -119,7 +119,7 @@ function InlineItemForm({
   itemId?: string
   onRegisterSubmit?: (submit: () => void) => void
   onUnregisterSubmit?: () => void
-  onRegisterReset?: (reset: () => void) => void
+  onRegisterReset?: (reset: (values?: ItemFormValues) => void) => void
   onDirtyChange?: (isDirty: boolean) => void
 }) {
   const savedDefaults = {
@@ -141,13 +141,13 @@ function InlineItemForm({
   const submitFnRef = useRef<() => void>(() => {})
   submitFnRef.current = () => handleSubmit(onSave)()
 
-  const resetFnRef = useRef<() => void>(() => {})
-  resetFnRef.current = () => reset(savedDefaults)
+  const resetFnRef = useRef<(values?: ItemFormValues) => void>(() => {})
+  resetFnRef.current = (values?: ItemFormValues) => reset(values ?? savedDefaults)
 
   useEffect(() => {
     if (!itemId) return
     onRegisterSubmit?.(() => submitFnRef.current())
-    onRegisterReset?.(() => resetFnRef.current())
+    onRegisterReset?.((values) => resetFnRef.current(values))
     return () => onUnregisterSubmit?.()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemId])
@@ -316,7 +316,7 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
   const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set())
   const [savingAll, setSavingAll] = useState(false)
   const submitRefs = useRef<Map<string, () => void>>(new Map())
-  const resetRefs = useRef<Map<string, () => void>>(new Map())
+  const resetRefs = useRef<Map<string, (values?: ItemFormValues) => void>>(new Map())
 
   const handleCreate = async (values: ItemFormValues) => {
     await createItem.mutateAsync({
@@ -343,6 +343,8 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
       is_available: values.is_available,
       is_out_of_stock: values.is_out_of_stock,
     })
+    // Reset the form to the just-saved values so RHF isDirty becomes false
+    resetRefs.current.get(id)?.(values)
     setExpandedIds((prev) => { const n = new Set(prev); n.delete(id); return n })
     setDirtyIds((prev) => { const n = new Set(prev); n.delete(id); return n })
   }
@@ -359,7 +361,7 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
   const handleRegister = (id: string, submit: () => void) => {
     submitRefs.current.set(id, submit)
   }
-  const handleRegisterReset = (id: string, fn: () => void) => {
+  const handleRegisterReset = (id: string, fn: (values?: ItemFormValues) => void) => {
     resetRefs.current.set(id, fn)
   }
   const handleUnregister = (id: string) => {
