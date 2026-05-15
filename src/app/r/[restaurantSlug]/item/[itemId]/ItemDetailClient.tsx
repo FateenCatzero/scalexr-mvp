@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { ArrowLeft, Box, Check, Minus, Plus, Scan } from 'lucide-react'
+import { ArrowLeft, Box, Check, Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -88,31 +88,18 @@ export default function ItemDetailClient({
         )}
       </div>
 
-      {/* 3D / AR buttons */}
-      {(item.has_3d_model || item.has_ar) && (
-        <div className="flex gap-2 px-4 mt-3">
-          {item.has_3d_model && glbAsset?.public_url && (
-            <Button
-              variant={show3D ? 'default' : 'outline'}
-              size="sm"
-              onClick={handleView3D}
-              className="flex-1 gap-1.5"
-            >
-              <Box className="w-4 h-4" />
-              {show3D ? 'Show photo' : 'View in 3D'}
-            </Button>
-          )}
-          {item.has_ar && (glbAsset?.public_url || usdzAsset?.public_url) && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShow3D(true)}
-              className="flex-1 gap-1.5"
-            >
-              <Scan className="w-4 h-4" />
-              View in AR
-            </Button>
-          )}
+      {/* 3D button — AR is inside the viewer */}
+      {item.has_3d_model && glbAsset?.public_url && (
+        <div className="px-4 mt-3">
+          <Button
+            variant={show3D ? 'default' : 'outline'}
+            size="sm"
+            onClick={handleView3D}
+            className="w-full gap-1.5"
+          >
+            <Box className="w-4 h-4" />
+            {show3D ? 'Show photo' : 'View in 3D'}
+          </Button>
         </div>
       )}
 

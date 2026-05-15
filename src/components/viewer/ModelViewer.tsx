@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { Scan } from 'lucide-react'
 
 interface ModelViewerProps {
   glbUrl: string
@@ -22,18 +23,36 @@ function loadModelViewerScript() {
   document.head.appendChild(s)
 }
 
+const TRANSPARENT_GIF =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+
 export default function ModelViewer({ glbUrl, usdzUrl, itemName }: ModelViewerProps) {
+  const isIOS =
+    typeof navigator !== 'undefined' &&
+    /iPhone|iPad|iPod/i.test(navigator.userAgent)
+
   useEffect(() => {
     loadModelViewerScript()
   }, [])
 
+  const handleAndroidAR = () => {
+    const intentUrl = [
+      'intent://arvr.google.com/scene-viewer/1.0',
+      `?file=${encodeURIComponent(glbUrl)}`,
+      '&mode=ar_preferred',
+      `&title=${encodeURIComponent(itemName)}`,
+      '#Intent;scheme=https;package=com.google.ar.core;',
+      'action=android.intent.action.VIEW;end;',
+    ].join('')
+    window.location.href = intentUrl
+  }
+
+  const showARButton = isIOS ? !!usdzUrl : !!glbUrl
+
   return (
-    <div className="w-full h-72 rounded-xl overflow-hidden bg-muted">
+    <div className="w-full h-72 rounded-xl overflow-hidden bg-muted relative">
       <model-viewer
         src={glbUrl}
-        ios-src={usdzUrl ?? ''}
-        ar
-        ar-modes="scene-viewer quick-look webxr"
         camera-controls
         title={itemName}
         shadow-intensity="1"
@@ -43,36 +62,59 @@ export default function ModelViewer({ glbUrl, usdzUrl, itemName }: ModelViewerPr
         auto-rotate
         auto-rotate-delay="500"
         rotation-per-second="30deg"
-      >
-        <button
-          slot="ar-button"
-          style={{
-            position: 'absolute',
-            bottom: '12px',
-            right: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(0,0,0,0.65)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '999px',
-            padding: '8px 16px',
-            fontSize: '13px',
-            fontWeight: 500,
-            cursor: 'pointer',
-          }}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
-            <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
-            <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
-            <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
-          </svg>
-          View in AR
-        </button>
-      </model-viewer>
+      />
+
+      {/* AR button — native Quick Look on iOS, Scene Viewer on Android */}
+      {showARButton && (
+        <div style={{ position: 'absolute', bottom: 12, right: 12 }}>
+          {isIOS && usdzUrl ? (
+            // iOS: <a rel="ar"> with img child is the ONLY reliable way to trigger Quick Look
+            <a
+              rel="ar"
+              href={usdzUrl}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'rgba(0,0,0,0.65)',
+                color: 'white',
+                textDecoration: 'none',
+                borderRadius: '999px',
+                padding: '8px 16px',
+                fontSize: '13px',
+                fontWeight: 500,
+              }}
+            >
+              {/* img child required for iOS Quick Look */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={TRANSPARENT_GIF} alt="" style={{ display: 'none' }} />
+              <Scan size={14} />
+              View in AR
+            </a>
+          ) : (
+            // Android: Scene Viewer intent
+            <button
+              onClick={handleAndroidAR}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'rgba(0,0,0,0.65)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '999px',
+                padding: '8px 16px',
+                fontSize: '13px',
+                fontWeight: 500,
+                cursor: 'pointer',
+              }}
+            >
+              <Scan size={14} />
+              View in AR
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
