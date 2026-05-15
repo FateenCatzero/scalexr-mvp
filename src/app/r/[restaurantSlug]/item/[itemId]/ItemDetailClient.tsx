@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
+import { loadModelViewerScript } from '@/components/viewer/ModelViewer'
 import { ArrowLeft, Box, Check, Minus, Plus, Scan } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -31,10 +32,12 @@ export default function ItemDetailClient({
   const [cartOpen, setCartOpen] = useState(false)
   const [justAdded, setJustAdded] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
+  const arRef = useRef<HTMLElement & { activateAR(): void }>(null)
 
   useEffect(() => {
     setIsIOS(/iPhone|iPad|iPod/i.test(navigator.userAgent))
-  }, [])
+    if (item.has_ar) loadModelViewerScript()
+  }, [item.has_ar])
 
   const addItem = useCartStore((s) => s.addItem)
   const updateQuantity = useCartStore((s) => s.updateQuantity)
@@ -54,20 +57,9 @@ export default function ItemDetailClient({
 
   const handleView3D = () => setShow3D((v) => !v)
 
-  const handleAndroidAR = () => {
-    if (!glbAsset?.public_url) return
-    const intentUrl = [
-      'intent://arvr.google.com/scene-viewer/1.0',
-      `?file=${encodeURIComponent(glbAsset.public_url)}`,
-      '&mode=ar_preferred',
-      `&title=${encodeURIComponent(item.name)}`,
-      '#Intent;scheme=https;package=com.google.ar.core;',
-      'action=android.intent.action.VIEW;end;',
-    ].join('')
-    window.location.href = intentUrl
-  }
+  const handleAR = () => arRef.current?.activateAR()
 
-  // Show AR button on iOS if USDZ exists, on Android if GLB exists
+  // Show AR button on iOS only if USDZ exists; Android only if GLB exists
   const showAR = item.has_ar && (isIOS ? !!usdzAsset?.public_url : !!glbAsset?.public_url)
 
   return (
@@ -124,36 +116,15 @@ export default function ItemDetailClient({
           )}
 
           {showAR && (
-            isIOS && usdzAsset?.public_url ? (
-              // iOS Quick Look — <a rel="ar"> requires an <img> first child with real layout dimensions
-              <a
-                rel="ar"
-                href={usdzAsset.public_url}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-md border border-input bg-background text-sm font-medium h-9 px-3 hover:bg-accent hover:text-accent-foreground transition-colors"
-                style={{ position: 'relative' }}
-              >
-                {/* img must cover the anchor with real dimensions (opacity:0) — width/height:0 breaks Quick Look detection */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={item.image_url ?? 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'}
-                  alt=""
-                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, pointerEvents: 'none' }}
-                />
-                <Scan className="w-4 h-4" />
-                View in AR
-              </a>
-            ) : (
-              // Android — Scene Viewer intent
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleAndroidAR}
-                className="flex-1 gap-1.5"
-              >
-                <Scan className="w-4 h-4" />
-                View in AR
-              </Button>
-            )
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAR}
+              className="flex-1 gap-1.5"
+            >
+              <Scan className="w-4 h-4" />
+              View in AR
+            </Button>
           )}
         </div>
       )}
@@ -218,6 +189,18 @@ export default function ItemDetailClient({
           </div>
         )}
       </div>
+
+      {/* Hidden model-viewer powers AR activation for both iOS (Quick Look) and Android (Scene Viewer) */}
+      {showAR && glbAsset?.public_url && (
+        <model-viewer
+          ref={arRef as React.RefObject<HTMLElement>}
+          src={glbAsset.public_url}
+          ios-src={usdzAsset?.public_url ?? ''}
+          ar
+          ar-modes="scene-viewer quick-look webxr"
+          style={{ position: 'fixed', width: 0, height: 0, top: 0, left: 0, opacity: 0, pointerEvents: 'none' }}
+        />
+      )}
 
       {/* Floating cart button */}
       <CartButton

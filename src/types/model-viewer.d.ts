@@ -1,6 +1,12 @@
 import * as React from 'react'
 
-type ModelViewerProps = React.HTMLAttributes<HTMLElement> & React.RefAttributes<HTMLElement> & {
+export interface ModelViewerElement extends HTMLElement {
+  activateAR(): void
+  src: string
+  poster?: string
+}
+
+type ModelViewerProps = React.HTMLAttributes<ModelViewerElement> & React.RefAttributes<ModelViewerElement> & {
   src?: string
   'ios-src'?: string
   ar?: boolean | string

@@ -11,7 +11,7 @@ interface ModelViewerProps {
 const CDN_URL =
   'https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js'
 
-function loadModelViewerScript() {
+export function loadModelViewerScript() {
   if (typeof window === 'undefined') return
   if (customElements.get('model-viewer')) return
   if (document.querySelector('script[data-mvscript]')) return
