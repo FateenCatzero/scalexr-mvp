@@ -208,7 +208,11 @@ export default function ItemDetailClient({
 
       {/* Add / Quantity controls */}
       <div className="px-4 mt-6">
-        {quantity === 0 ? (
+        {item.is_out_of_stock ? (
+          <Button size="lg" className="w-full" disabled>
+            Out of stock
+          </Button>
+        ) : quantity === 0 ? (
           <Button
             size="lg"
             className="w-full gap-2"
