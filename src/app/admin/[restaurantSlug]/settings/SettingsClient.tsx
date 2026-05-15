@@ -23,7 +23,7 @@ export default function SettingsClient({ restaurant }: { restaurant: Restaurant 
   const update = useUpdateRestaurant()
   const [saved, setSaved] = useState(false)
 
-  const { register, handleSubmit, formState: { errors } } = useForm<Values>({
+  const { register, handleSubmit, reset, formState: { errors, isDirty } } = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: {
       name: restaurant.name,
@@ -39,6 +39,7 @@ export default function SettingsClient({ restaurant }: { restaurant: Restaurant 
         description: values.description || null,
       },
     })
+    reset(values)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
@@ -76,7 +77,7 @@ export default function SettingsClient({ restaurant }: { restaurant: Restaurant 
           <p className="text-sm text-destructive">Something went wrong. Please try again.</p>
         )}
 
-        <Button type="submit" className="w-full" disabled={update.isPending}>
+        <Button type="submit" className="w-full" disabled={update.isPending || !isDirty}>
           {update.isPending ? 'Saving…' : saved ? <><Check className="w-4 h-4 inline mr-1" />Saved!</> : 'Save settings'}
         </Button>
       </form>

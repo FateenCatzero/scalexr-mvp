@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -104,6 +104,9 @@ function InlineItemForm({
   loading,
   submitLabel,
   itemId,
+  onRegisterSubmit,
+  onUnregisterSubmit,
+  onDirtyChange,
 }: {
   restaurantId: string
   categories: Category[]
@@ -113,8 +116,11 @@ function InlineItemForm({
   loading: boolean
   submitLabel: string
   itemId?: string
+  onRegisterSubmit?: (submit: () => void) => void
+  onUnregisterSubmit?: () => void
+  onDirtyChange?: (isDirty: boolean) => void
 }) {
-  const { register, handleSubmit, control, formState: { errors } } = useForm<ItemFormValues>({
+  const { register, handleSubmit, control, formState: { errors, isDirty } } = useForm<ItemFormValues>({
     resolver: zodResolver(itemSchema),
     defaultValues: {
       name: defaultValues?.name ?? '',
@@ -126,6 +132,21 @@ function InlineItemForm({
       is_out_of_stock: defaultValues?.is_out_of_stock ?? false,
     },
   })
+
+  // Keep a stable ref to the current submit so parent can call it without stale closure
+  const submitFnRef = useRef<() => void>(() => {})
+  submitFnRef.current = () => handleSubmit(onSave)()
+
+  useEffect(() => {
+    if (!itemId) return
+    onRegisterSubmit?.(() => submitFnRef.current())
+    return () => onUnregisterSubmit?.()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemId])
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty)
+  }, [isDirty, onDirtyChange])
 
   const { data: assets = [] } = useItemAssets(itemId ?? '')
   const glbAsset = assets.find((a) => a.asset_type === 'model_glb')
@@ -256,7 +277,7 @@ function InlineItemForm({
       )}
 
       <div className="flex gap-2 pt-1">
-        <Button type="submit" size="sm" className="flex-1" disabled={loading}>
+        <Button type="submit" size="sm" className="flex-1" disabled={loading || !isDirty}>
           {loading ? 'Saving…' : submitLabel}
         </Button>
         <Button type="button" size="sm" variant="outline" onClick={onCancel}>
@@ -277,8 +298,11 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
   const deleteItem = useDeleteMenuItem()
 
   const [addingNew, setAddingNew] = useState(false)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set())
+  const [savingAll, setSavingAll] = useState(false)
+  const submitRefs = useRef<Map<string, () => void>>(new Map())
 
   const handleCreate = async (values: ItemFormValues) => {
     await createItem.mutateAsync({
@@ -305,16 +329,42 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
       is_available: values.is_available,
       is_out_of_stock: values.is_out_of_stock,
     })
-    setExpandedId(null)
+    setExpandedIds((prev) => { const n = new Set(prev); n.delete(id); return n })
+    setDirtyIds((prev) => { const n = new Set(prev); n.delete(id); return n })
   }
 
   const toggleExpand = (id: string) => {
-    setExpandedId((prev) => (prev === id ? null : id))
+    setExpandedIds((prev) => {
+      const n = new Set(prev)
+      if (n.has(id)) { n.delete(id); submitRefs.current.delete(id) } else n.add(id)
+      return n
+    })
     setConfirmDeleteId(null)
   }
 
+  const handleRegister = (id: string, submit: () => void) => {
+    submitRefs.current.set(id, submit)
+  }
+  const handleUnregister = (id: string) => {
+    submitRefs.current.delete(id)
+    setDirtyIds((prev) => { const n = new Set(prev); n.delete(id); return n })
+  }
+  const handleDirtyChange = (id: string, dirty: boolean) => {
+    setDirtyIds((prev) => {
+      const n = new Set(prev)
+      if (dirty) n.add(id); else n.delete(id)
+      return n
+    })
+  }
+
+  const handleSaveAll = async () => {
+    setSavingAll(true)
+    dirtyIds.forEach((id) => submitRefs.current.get(id)?.())
+    setSavingAll(false)
+  }
+
   return (
-    <div className="px-4 space-y-3">
+    <div className="px-4 space-y-3 pb-24">
       {addingNew ? (
         <div className="rounded-xl border border-primary/40 bg-card p-3">
           <p className="font-semibold text-sm">New item</p>
@@ -333,7 +383,7 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
       ) : (
         <Button
           className="w-full gap-2"
-          onClick={() => { setAddingNew(true); setExpandedId(null) }}
+          onClick={() => { setAddingNew(true); setExpandedIds(new Set()) }}
         >
           <Plus className="w-4 h-4" /> Add item
         </Button>
@@ -347,11 +397,18 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
         </p>
       ) : (
         items.map((item) => {
-          const isExpanded = expandedId === item.id
+          const isExpanded = expandedIds.has(item.id)
           const isConfirmingDelete = confirmDeleteId === item.id
+          const isDirtyItem = dirtyIds.has(item.id)
 
           return (
-            <div key={item.id} className="rounded-xl border border-border bg-card p-3">
+            <div
+              key={item.id}
+              className={[
+                'rounded-xl border bg-card p-3 transition-colors',
+                isDirtyItem ? 'border-primary/50' : 'border-border',
+              ].join(' ')}
+            >
               {/* Tappable header — tap anywhere to expand */}
               <button
                 type="button"
@@ -369,12 +426,17 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
                   <div className="w-12 h-12 rounded-lg bg-muted shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className={[
-                    'font-medium text-sm truncate',
-                    !item.is_available ? 'line-through text-muted-foreground' : '',
-                  ].join(' ')}>
-                    {item.name}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className={[
+                      'font-medium text-sm truncate',
+                      !item.is_available ? 'line-through text-muted-foreground' : '',
+                    ].join(' ')}>
+                      {item.name}
+                    </p>
+                    {isDirtyItem && (
+                      <span className="text-xs text-primary font-medium shrink-0">Unsaved</span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground truncate">
                     {formatPrice(item.price)}
                     {item.categories?.name ? ` · ${item.categories.name}` : ''}
@@ -396,10 +458,13 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
                     categories={categories}
                     defaultValues={item}
                     onSave={(values) => handleUpdate(item.id, values)}
-                    onCancel={() => setExpandedId(null)}
+                    onCancel={() => toggleExpand(item.id)}
                     loading={updateItem.isPending}
                     submitLabel="Save changes"
                     itemId={item.id}
+                    onRegisterSubmit={(fn) => handleRegister(item.id, fn)}
+                    onUnregisterSubmit={() => handleUnregister(item.id)}
+                    onDirtyChange={(dirty) => handleDirtyChange(item.id, dirty)}
                   />
 
                   {/* Delete button swaps to confirm row in-place */}
@@ -421,7 +486,7 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
                           try {
                             await deleteItem.mutateAsync({ id: item.id, restaurantId: restaurant.id })
                             setConfirmDeleteId(null)
-                            setExpandedId(null)
+                            toggleExpand(item.id)
                           } catch {
                             // error shown below
                           }
@@ -450,6 +515,19 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
             </div>
           )
         })
+      )}
+
+      {/* Sticky Save all — appears only when there are unsaved changes */}
+      {dirtyIds.size > 0 && (
+        <div className="fixed bottom-20 left-0 right-0 flex justify-center z-20 pointer-events-none">
+          <Button
+            onClick={handleSaveAll}
+            disabled={savingAll}
+            className="pointer-events-auto shadow-lg gap-2 px-6"
+          >
+            {savingAll ? 'Saving…' : `Save all changes (${dirtyIds.size})`}
+          </Button>
+        </div>
       )}
     </div>
   )
