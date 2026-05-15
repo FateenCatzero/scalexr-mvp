@@ -1,9 +1,8 @@
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { loadModelViewerScript } from '@/components/viewer/ModelViewer'
 import { ArrowLeft, Box, Check, Minus, Plus, Scan } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -13,7 +12,6 @@ import CartSheet from '@/components/cart/CartSheet'
 import { useCartStore } from '@/lib/store/cartStore'
 import { formatPrice } from '@/lib/utils'
 import type { MenuItemWithAssets } from '@/lib/types'
-import type { ModelViewerElement } from '@/types/model-viewer'
 
 const ModelViewer = dynamic(
   () => import('@/components/viewer/ModelViewer'),
@@ -33,12 +31,10 @@ export default function ItemDetailClient({
   const [cartOpen, setCartOpen] = useState(false)
   const [justAdded, setJustAdded] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
-  const arRef = useRef<ModelViewerElement>(null)
 
   useEffect(() => {
     setIsIOS(/iPhone|iPad|iPod/i.test(navigator.userAgent))
-    if (item.has_ar) loadModelViewerScript()
-  }, [item.has_ar])
+  }, [])
 
   const addItem = useCartStore((s) => s.addItem)
   const updateQuantity = useCartStore((s) => s.updateQuantity)
@@ -58,7 +54,35 @@ export default function ItemDetailClient({
 
   const handleView3D = () => setShow3D((v) => !v)
 
-  const handleAR = () => arRef.current?.activateAR()
+  const handleAR = () => {
+    if (isIOS && usdzAsset?.public_url) {
+      // iOS Quick Look: create <a rel="ar"><img></a> and click it synchronously
+      // within the user gesture so Safari treats it as a real Quick Look trigger
+      const a = document.createElement('a')
+      a.setAttribute('rel', 'ar')
+      a.href = usdzAsset.public_url
+      a.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px'
+      const img = document.createElement('img')
+      img.src = item.image_url ?? ''
+      img.setAttribute('width', '1')
+      img.setAttribute('height', '1')
+      a.appendChild(img)
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+    } else if (!isIOS && glbAsset?.public_url) {
+      // Android: Scene Viewer via intent URL
+      const intentUrl = [
+        'intent://arvr.google.com/scene-viewer/1.0',
+        `?file=${encodeURIComponent(glbAsset.public_url)}`,
+        '&mode=ar_preferred',
+        `&title=${encodeURIComponent(item.name)}`,
+        '#Intent;scheme=https;package=com.google.ar.core;',
+        'action=android.intent.action.VIEW;end;',
+      ].join('')
+      window.location.href = intentUrl
+    }
+  }
 
   // Show AR button on iOS only if USDZ exists; Android only if GLB exists
   const showAR = item.has_ar && (isIOS ? !!usdzAsset?.public_url : !!glbAsset?.public_url)
@@ -190,18 +214,6 @@ export default function ItemDetailClient({
           </div>
         )}
       </div>
-
-      {/* Hidden model-viewer powers AR activation for both iOS (Quick Look) and Android (Scene Viewer) */}
-      {showAR && glbAsset?.public_url && (
-        <model-viewer
-          ref={arRef}
-          src={glbAsset.public_url}
-          ios-src={usdzAsset?.public_url ?? ''}
-          ar
-          ar-modes="scene-viewer quick-look webxr"
-          style={{ position: 'fixed', width: 0, height: 0, top: 0, left: 0, opacity: 0, pointerEvents: 'none' }}
-        />
-      )}
 
       {/* Floating cart button */}
       <CartButton
