@@ -18,6 +18,7 @@ const ModelViewer = dynamic(
   { ssr: false, loading: () => <Skeleton className="w-full h-72 rounded-xl" /> }
 )
 
+
 interface ItemDetailClientProps {
   item: MenuItemWithAssets
   restaurantSlug: string
@@ -28,7 +29,6 @@ export default function ItemDetailClient({
   restaurantSlug,
 }: ItemDetailClientProps) {
   const [show3D, setShow3D] = useState(false)
-  const [autoAR, setAutoAR] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
   const [justAdded, setJustAdded] = useState(false)
 
@@ -48,15 +48,7 @@ export default function ItemDetailClient({
     setTimeout(() => setJustAdded(false), 1500)
   }
 
-  const handleViewAR = () => {
-    setAutoAR(true)
-    setShow3D(true)
-  }
-
-  const handleView3D = () => {
-    setAutoAR(false)
-    setShow3D((v) => !v)
-  }
+  const handleView3D = () => setShow3D((v) => !v)
 
   return (
     <div className="mx-auto max-w-md min-h-screen pb-28">
@@ -77,7 +69,6 @@ export default function ItemDetailClient({
             glbUrl={glbAsset.public_url}
             usdzUrl={usdzAsset?.public_url ?? undefined}
             itemName={item.name}
-            autoAR={autoAR}
           />
         ) : (
           <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-muted">
@@ -102,7 +93,7 @@ export default function ItemDetailClient({
         <div className="flex gap-2 px-4 mt-3">
           {item.has_3d_model && glbAsset?.public_url && (
             <Button
-              variant={show3D && !autoAR ? 'default' : 'outline'}
+              variant={show3D ? 'default' : 'outline'}
               size="sm"
               onClick={handleView3D}
               className="flex-1 gap-1.5"
@@ -115,7 +106,7 @@ export default function ItemDetailClient({
             <Button
               variant="outline"
               size="sm"
-              onClick={handleViewAR}
+              onClick={() => setShow3D(true)}
               className="flex-1 gap-1.5"
             >
               <Scan className="w-4 h-4" />
