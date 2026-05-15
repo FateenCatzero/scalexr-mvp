@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -39,6 +39,7 @@ export default function CheckoutClient({
   const addOrder = useOrderStore((s) => s.addOrder)
   const { data: restaurant } = useRestaurant(restaurantSlug)
   const createOrder = useCreateOrder()
+  const submitted = useRef(false)
 
   const {
     register,
@@ -50,7 +51,7 @@ export default function CheckoutClient({
   })
 
   useEffect(() => {
-    if (items.length === 0) router.replace(`/r/${restaurantSlug}`)
+    if (items.length === 0 && !submitted.current) router.replace(`/r/${restaurantSlug}`)
   }, [items.length, restaurantSlug, router])
 
   const onSubmit = async (data: FormData) => {
@@ -62,6 +63,7 @@ export default function CheckoutClient({
       customerNote: data.customerNote ?? '',
       items,
     })
+    submitted.current = true
     clearCart()
     addOrder({ id: order.id, restaurantSlug, createdAt: order.created_at })
     toast.success('Order placed!')
