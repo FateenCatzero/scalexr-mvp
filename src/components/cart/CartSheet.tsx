@@ -30,7 +30,7 @@ export default function CartSheet({ open, onClose, restaurantSlug }: CartSheetPr
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto pb-safe">
+      <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto px-4 pb-safe">
         <SheetHeader className="pb-4">
           <SheetTitle>Your order</SheetTitle>
         </SheetHeader>
