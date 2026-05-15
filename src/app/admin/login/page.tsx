@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -27,12 +27,54 @@ type SignupValues = z.infer<typeof signupSchema>
 
 export default function AdminLoginPage() {
   const router = useRouter()
-  const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login')
+  const searchParams = useSearchParams()
+  const [mode, setMode] = useState<'login' | 'signup' | 'forgot' | 'verify'>('login')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [resetSent, setResetSent] = useState(false)
   const [resetEmail, setResetEmail] = useState('')
+  const [verifiedEmail, setVerifiedEmail] = useState('')
+
+  // Detect email-verified redirect (?verified=1)
+  useEffect(() => {
+    if (searchParams.get('verified') === '1') {
+      setMode('login')
+      setError(null)
+    }
+  }, [searchParams])
+
+  // If user lands here already authenticated (e.g. after email confirmation link),
+  // redirect them to the correct admin area automatically.
+  useEffect(() => {
+    const supabase = createClient()
+    const returnTo = searchParams.get('returnTo')
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) return
+      const { data: profile } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', session.user.id)
+        .single()
+      if (profile?.role === 'master_admin') {
+        router.push(returnTo ?? '/admin/master')
+        return
+      }
+      if (returnTo?.startsWith('/admin/')) {
+        router.push(returnTo)
+        return
+      }
+      const { data } = await supabase
+        .from('restaurant_users')
+        .select('restaurants(slug)')
+        .eq('user_id', session.user.id)
+        .single()
+      const r = Array.isArray(data?.restaurants) ? data.restaurants[0] : data?.restaurants
+      const slug = (r as { slug: string } | null)?.slug
+      if (slug) router.push(`/admin/${slug}`)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const loginForm = useForm<LoginValues>({ resolver: zodResolver(loginSchema) })
   const signupForm = useForm<SignupValues>({ resolver: zodResolver(signupSchema) })
@@ -54,12 +96,10 @@ export default function AdminLoginPage() {
     setError(null)
     setShowPassword(false)
     if (next === 'signup') {
-      // Carry email over, clear password, keep slug as-is
       const email = loginForm.getValues('email')
       signupForm.setValue('email', email)
       signupForm.setValue('password', '')
     } else {
-      // Carry email over, clear password
       const email = signupForm.getValues('email')
       loginForm.setValue('email', email)
       loginForm.setValue('password', '')
@@ -83,15 +123,22 @@ export default function AdminLoginPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setError('Login failed'); setLoading(false); return }
 
-    // Check role — master_admin goes to master dashboard, restaurant_admin to their restaurant
     const { data: profile } = await supabase
       .from('users')
       .select('role')
       .eq('id', user.id)
       .single()
 
+    const returnTo = searchParams.get('returnTo')
+
     if (profile?.role === 'master_admin') {
-      router.push('/admin/master')
+      router.push(returnTo ?? '/admin/master')
+      return
+    }
+
+    // returnTo takes priority if it points to the right restaurant
+    if (returnTo?.startsWith('/admin/')) {
+      router.push(returnTo)
       return
     }
 
@@ -129,6 +176,9 @@ export default function AdminLoginPage() {
     const { error: authError, data: authData } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/admin/login?verified=1`,
+      },
     })
     if (authError) {
       setError(authError.message)
@@ -154,8 +204,18 @@ export default function AdminLoginPage() {
       return
     }
 
+    // If Supabase requires email confirmation, session will be null — show verify screen
+    if (!authData.session) {
+      setVerifiedEmail(values.email)
+      setMode('verify')
+      setLoading(false)
+      return
+    }
+
     router.push(`/admin/${restaurant.slug}`)
   }
+
+  const isVerifiedRedirect = searchParams.get('verified') === '1'
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
@@ -163,11 +223,42 @@ export default function AdminLoginPage() {
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold">ScaleXR Admin</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {mode === 'login' ? 'Sign in to your restaurant' : mode === 'signup' ? 'Create an admin account' : 'Reset your password'}
+            {mode === 'login' ? 'Sign in to your restaurant'
+              : mode === 'signup' ? 'Create an admin account'
+              : mode === 'verify' ? 'Check your inbox'
+              : 'Reset your password'}
           </p>
         </div>
 
-        {mode === 'login' ? (
+        {/* Email verified banner */}
+        {isVerifiedRedirect && mode === 'login' && (
+          <div className="flex items-start gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 mb-4">
+            <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+            <p className="text-sm text-primary font-medium">Email verified! You can now sign in.</p>
+          </div>
+        )}
+
+        {mode === 'verify' ? (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-border bg-card p-5 space-y-3 text-center">
+              <p className="font-semibold">Confirm your email</p>
+              <p className="text-sm text-muted-foreground">
+                We sent a verification link to{' '}
+                <span className="font-medium text-foreground">{verifiedEmail}</span>.
+                Click the link in the email to activate your account.
+              </p>
+            </div>
+            <p className="text-center text-sm text-muted-foreground">
+              Already verified?{' '}
+              <button
+                onClick={() => switchMode('login')}
+                className="underline hover:text-foreground transition-colors"
+              >
+                Sign in
+              </button>
+            </p>
+          </div>
+        ) : mode === 'login' ? (
           <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="login-email">Email</Label>
@@ -307,7 +398,7 @@ export default function AdminLoginPage() {
           </form>
         )}
 
-        {mode !== 'forgot' && (
+        {(mode === 'login' || mode === 'signup') && (
           <p className="text-center text-sm text-muted-foreground mt-6">
             {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}{' '}
             <button
