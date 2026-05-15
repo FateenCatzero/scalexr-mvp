@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   Plus, Power, PowerOff, Check, X, Store,
-  Users, CalendarPlus, ShoppingBag, Settings, LayoutDashboard, Eye,
+  Users, CalendarPlus, ShoppingBag, Settings, LayoutDashboard,
 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -362,15 +362,6 @@ function RestaurantCard({ restaurant: r }: { restaurant: RestaurantWithStats }) 
           >
             <LayoutDashboard className="w-3.5 h-3.5" /> Admin dashboard
           </Link>
-          <a
-            href={`/r/${r.slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors"
-            title="Open the public customer-facing menu"
-          >
-            <Eye className="w-3.5 h-3.5" /> Customer menu
-          </a>
           <button
             onClick={handleToggle}
             disabled={toggle.isPending}

@@ -18,16 +18,13 @@ export default async function TablesPage({
     { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
   )
 
-  const { data: access } = await supabase
-    .from('restaurant_users')
-    .select('restaurants(*)')
+  const { data: restaurant } = await supabase
+    .from('restaurants')
+    .select('*')
+    .eq('slug', restaurantSlug)
     .single()
 
-  const restaurant = (Array.isArray(access?.restaurants)
-    ? access.restaurants[0]
-    : access?.restaurants) as Restaurant | null
+  if (!restaurant) redirect('/admin/login')
 
-  if (!restaurant || restaurant.slug !== restaurantSlug) redirect('/admin/login')
-
-  return <TablesClient restaurant={restaurant} />
+  return <TablesClient restaurant={restaurant as Restaurant} />
 }
