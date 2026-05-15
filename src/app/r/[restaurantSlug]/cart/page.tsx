@@ -9,10 +9,11 @@ import MobileShell from '@/components/layout/MobileShell'
 import { useCartStore } from '@/lib/store/cartStore'
 import { formatPrice } from '@/lib/utils'
 
+
 export default function CartPage() {
   const params = useParams<{ restaurantSlug: string }>()
   const router = useRouter()
-  const { items, updateQuantity, removeItem, getTotal } = useCartStore()
+  const { items, updateQuantity, removeItem, getTotal, tableNumber } = useCartStore()
 
   return (
     <MobileShell className="px-4">
@@ -82,9 +83,10 @@ export default function CartPage() {
           <Button
             size="lg"
             className="w-full"
-            onClick={() =>
-              router.push(`/r/${params.restaurantSlug}/checkout`)
-            }
+            onClick={() => {
+              const qs = tableNumber ? `?table=${encodeURIComponent(tableNumber)}` : ''
+              router.push(`/r/${params.restaurantSlug}/checkout${qs}`)
+            }}
           >
             Proceed to checkout
           </Button>

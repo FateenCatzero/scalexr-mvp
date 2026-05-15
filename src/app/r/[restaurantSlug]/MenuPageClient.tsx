@@ -9,6 +9,7 @@ import CartButton from '@/components/cart/CartButton'
 import CartSheet from '@/components/cart/CartSheet'
 import OrdersSheet from '@/components/customer/OrdersSheet'
 import { useOrderStore } from '@/lib/store/orderStore'
+import { useCartStore } from '@/lib/store/cartStore'
 import type { Restaurant } from '@/lib/types'
 
 interface MenuPageClientProps {
@@ -23,10 +24,15 @@ export default function MenuPageClient({
   const [cartOpen, setCartOpen] = useState(false)
   const [ordersOpen, setOrdersOpen] = useState(false)
   const { orders } = useOrderStore()
+  const setTableNumber = useCartStore((s) => s.setTableNumber)
 
   useEffect(() => {
     trackEvent(restaurant.id, 'menu_view', { restaurant_slug: restaurant.slug })
   }, [restaurant.id, restaurant.slug])
+
+  useEffect(() => {
+    if (tableNumber) setTableNumber(tableNumber)
+  }, [tableNumber, setTableNumber])
   const restaurantOrderCount = orders.filter(
     (o) => o.restaurantSlug === restaurant.slug
   ).length

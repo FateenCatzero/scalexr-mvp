@@ -7,6 +7,8 @@ import type { CartItem, MenuItem } from '@/lib/types'
 interface CartStore {
   items: CartItem[]
   restaurantSlug: string | null
+  tableNumber: string | null
+  setTableNumber: (table: string) => void
   addItem: (menuItem: MenuItem, quantity?: number, notes?: string) => void
   removeItem: (menuItemId: string) => void
   updateQuantity: (menuItemId: string, quantity: number) => void
@@ -20,6 +22,9 @@ export const useCartStore = create<CartStore>()(
     (set, get) => ({
       items: [],
       restaurantSlug: null,
+      tableNumber: null,
+
+      setTableNumber: (table) => set({ tableNumber: table }),
 
       addItem: (menuItem, quantity = 1, notes) => {
         set((state) => {
@@ -58,7 +63,7 @@ export const useCartStore = create<CartStore>()(
         }))
       },
 
-      clearCart: () => set({ items: [], restaurantSlug: null }),
+      clearCart: () => set({ items: [], restaurantSlug: null, tableNumber: null }),
 
       getTotal: () =>
         get().items.reduce(

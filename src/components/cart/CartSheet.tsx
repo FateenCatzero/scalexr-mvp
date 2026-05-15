@@ -21,11 +21,12 @@ interface CartSheetProps {
 
 export default function CartSheet({ open, onClose, restaurantSlug }: CartSheetProps) {
   const router = useRouter()
-  const { items, updateQuantity, removeItem, getTotal } = useCartStore()
+  const { items, updateQuantity, removeItem, getTotal, tableNumber } = useCartStore()
 
   const handleCheckout = () => {
     onClose()
-    router.push(`/r/${restaurantSlug}/checkout`)
+    const qs = tableNumber ? `?table=${encodeURIComponent(tableNumber)}` : ''
+    router.push(`/r/${restaurantSlug}/checkout${qs}`)
   }
 
   return (

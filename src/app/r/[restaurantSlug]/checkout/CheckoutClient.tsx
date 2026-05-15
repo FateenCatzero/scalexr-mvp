@@ -98,7 +98,12 @@ export default function CheckoutClient({
         </div>
 
         <div>
-          <label className="text-sm font-medium block mb-1.5">Table number</label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-sm font-medium">Table number</label>
+            {tableFromQR && (
+              <span className="text-xs text-muted-foreground">From QR code — you can change this</span>
+            )}
+          </div>
           <input
             {...register('tableNumber')}
             placeholder="e.g. 5"
