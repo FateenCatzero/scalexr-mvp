@@ -1,21 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { ArrowLeft, Box, Check, Minus, Plus } from 'lucide-react'
+import { ArrowLeft, Box, Check, Minus, Plus, Scan } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import ARLauncher from '@/components/viewer/ARLauncher'
 import CartButton from '@/components/cart/CartButton'
 import CartSheet from '@/components/cart/CartSheet'
 import { useCartStore } from '@/lib/store/cartStore'
 import { formatPrice } from '@/lib/utils'
 import type { MenuItemWithAssets } from '@/lib/types'
 
-const ThreeDViewer = dynamic(
-  () => import('@/components/viewer/ThreeDViewer'),
+const ModelViewer = dynamic(
+  () => import('@/components/viewer/ModelViewer'),
   { ssr: false, loading: () => <Skeleton className="w-full h-72 rounded-xl" /> }
 )
 
@@ -29,6 +28,7 @@ export default function ItemDetailClient({
   restaurantSlug,
 }: ItemDetailClientProps) {
   const [show3D, setShow3D] = useState(false)
+  const [autoAR, setAutoAR] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
   const [justAdded, setJustAdded] = useState(false)
 
@@ -42,20 +42,20 @@ export default function ItemDetailClient({
   const glbAsset = item.item_assets.find((a) => a.asset_type === 'model_glb')
   const usdzAsset = item.item_assets.find((a) => a.asset_type === 'model_usdz')
 
-  // Preload GLB as soon as the page mounts so it's ready when the user taps View in 3D
-  useEffect(() => {
-    const url = glbAsset?.public_url
-    if (url) {
-      import('@react-three/drei').then(({ useGLTF }) => {
-        useGLTF.preload(url)
-      })
-    }
-  }, [glbAsset?.public_url])
-
   const handleAdd = () => {
     addItem(item)
     setJustAdded(true)
     setTimeout(() => setJustAdded(false), 1500)
+  }
+
+  const handleViewAR = () => {
+    setAutoAR(true)
+    setShow3D(true)
+  }
+
+  const handleView3D = () => {
+    setAutoAR(false)
+    setShow3D((v) => !v)
   }
 
   return (
@@ -73,7 +73,12 @@ export default function ItemDetailClient({
       {/* Image / 3D viewer */}
       <div className="mt-4 px-4">
         {show3D && glbAsset?.public_url ? (
-          <ThreeDViewer glbUrl={glbAsset.public_url} />
+          <ModelViewer
+            glbUrl={glbAsset.public_url}
+            usdzUrl={usdzAsset?.public_url ?? undefined}
+            itemName={item.name}
+            autoAR={autoAR}
+          />
         ) : (
           <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-muted">
             {item.image_url ? (
@@ -97,9 +102,9 @@ export default function ItemDetailClient({
         <div className="flex gap-2 px-4 mt-3">
           {item.has_3d_model && glbAsset?.public_url && (
             <Button
-              variant={show3D ? 'default' : 'outline'}
+              variant={show3D && !autoAR ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setShow3D((v) => !v)}
+              onClick={handleView3D}
               className="flex-1 gap-1.5"
             >
               <Box className="w-4 h-4" />
@@ -107,13 +112,15 @@ export default function ItemDetailClient({
             </Button>
           )}
           {item.has_ar && (glbAsset?.public_url || usdzAsset?.public_url) && (
-            <div className="flex-1">
-              <ARLauncher
-                glbUrl={glbAsset?.public_url ?? ''}
-                usdzUrl={usdzAsset?.public_url ?? undefined}
-                itemName={item.name}
-              />
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleViewAR}
+              className="flex-1 gap-1.5"
+            >
+              <Scan className="w-4 h-4" />
+              View in AR
+            </Button>
           )}
         </div>
       )}
@@ -177,7 +184,6 @@ export default function ItemDetailClient({
             </div>
           </div>
         )}
-
       </div>
 
       {/* Floating cart button */}

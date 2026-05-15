@@ -1,22 +1,33 @@
-import '@google/model-viewer'
+import * as React from 'react'
+
+type ModelViewerProps = React.HTMLAttributes<HTMLElement> & React.RefAttributes<HTMLElement> & {
+  src?: string
+  'ios-src'?: string
+  ar?: boolean | string
+  'ar-modes'?: string
+  title?: string
+  'camera-controls'?: boolean | string
+  'shadow-intensity'?: string
+  'auto-rotate'?: boolean | string
+  'auto-rotate-delay'?: string | number
+  'rotation-per-second'?: string
+  loading?: string
+  'min-camera-orbit'?: string
+  reveal?: string
+}
 
 declare global {
   namespace JSX {
     interface IntrinsicElements {
-      'model-viewer': React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement>,
-        HTMLElement
-      > & {
-        src?: string
-        'ios-src'?: string
-        ar?: boolean | string
-        'ar-modes'?: string
-        title?: string
-        'camera-controls'?: boolean | string
-        autoplay?: boolean | string
-        'shadow-intensity'?: string
-        style?: React.CSSProperties
-      }
+      'model-viewer': ModelViewerProps
+    }
+  }
+}
+
+declare module 'react' {
+  namespace JSX {
+    interface IntrinsicElements {
+      'model-viewer': ModelViewerProps
     }
   }
 }

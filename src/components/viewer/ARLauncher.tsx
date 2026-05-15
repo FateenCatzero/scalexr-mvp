@@ -28,7 +28,6 @@ export default function ARLauncher({ glbUrl, usdzUrl, itemName }: ARLauncherProp
   return (
     <div className="relative w-full">
       {/* Hidden model-viewer — handles all AR launch logic */}
-      {/* @ts-expect-error model-viewer is a web component registered at runtime */}
       <model-viewer
         ref={mvRef}
         src={glbUrl}
