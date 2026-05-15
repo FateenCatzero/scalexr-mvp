@@ -1,14 +1,16 @@
 'use client'
 
+import { useState } from 'react'
 import { formatDistanceToNow, formatPrice } from '@/lib/utils'
 import StatusBadge from './StatusBadge'
-import type { OrderStatus, OrderWithItems } from '@/lib/types'
+import type { OrderWithItems } from '@/lib/types'
 
 interface Action {
   label: string
   onClick: () => void
   loading?: boolean
   variant?: 'primary' | 'secondary' | 'danger'
+  requireConfirm?: boolean
 }
 
 interface OrderCardProps {
@@ -18,6 +20,17 @@ interface OrderCardProps {
 }
 
 export default function OrderCard({ order, actions, onEdit }: OrderCardProps) {
+  const [confirmingLabel, setConfirmingLabel] = useState<string | null>(null)
+
+  const handleActionClick = (action: Action) => {
+    if (action.requireConfirm && confirmingLabel !== action.label) {
+      setConfirmingLabel(action.label)
+      return
+    }
+    setConfirmingLabel(null)
+    action.onClick()
+  }
+
   return (
     <div className="rounded-xl border border-border bg-card p-4 space-y-3">
       {/* Header */}
@@ -68,24 +81,49 @@ export default function OrderCard({ order, actions, onEdit }: OrderCardProps) {
 
       {/* Actions */}
       {actions.length > 0 && (
-        <div className="flex gap-2 pt-1">
-          {actions.map((action) => (
-            <button
-              key={action.label}
-              onClick={action.onClick}
-              disabled={action.loading}
-              className={[
-                'flex-1 rounded-lg py-2 text-sm font-medium transition-colors disabled:opacity-50',
-                action.variant === 'secondary'
-                  ? 'border border-border hover:bg-muted'
-                  : action.variant === 'danger'
-                  ? 'bg-red-500 text-white hover:bg-red-600'
-                  : 'bg-foreground text-background hover:opacity-90',
-              ].join(' ')}
-            >
-              {action.loading ? '…' : action.label}
-            </button>
-          ))}
+        <div className="space-y-2 pt-1">
+          {confirmingLabel && (
+            <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2">
+              <p className="flex-1 text-xs font-medium">Are you sure?</p>
+              <button
+                onClick={() => setConfirmingLabel(null)}
+                className="text-xs px-3 py-1.5 rounded-lg border border-border bg-background hover:bg-muted transition-colors"
+              >
+                No
+              </button>
+              <button
+                onClick={() => {
+                  const action = actions.find((a) => a.label === confirmingLabel)
+                  if (action) handleActionClick(action)
+                }}
+                className="text-xs px-3 py-1.5 rounded-lg bg-foreground text-background hover:opacity-90 transition-colors"
+              >
+                Yes, {confirmingLabel.toLowerCase()}
+              </button>
+            </div>
+          )}
+          <div className="flex gap-2">
+            {actions.map((action) => (
+              <button
+                key={action.label}
+                onClick={() => handleActionClick(action)}
+                disabled={action.loading}
+                className={[
+                  'flex-1 rounded-lg py-2 text-sm font-medium transition-colors disabled:opacity-50',
+                  confirmingLabel === action.label
+                    ? 'ring-2 ring-foreground'
+                    : '',
+                  action.variant === 'secondary'
+                    ? 'border border-border hover:bg-muted'
+                    : action.variant === 'danger'
+                    ? 'bg-red-500 text-white hover:bg-red-600'
+                    : 'bg-foreground text-background hover:opacity-90',
+                ].join(' ')}
+              >
+                {action.loading ? '…' : action.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

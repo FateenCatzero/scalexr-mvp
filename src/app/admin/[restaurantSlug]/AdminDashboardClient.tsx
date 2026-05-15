@@ -41,7 +41,7 @@ export default function AdminDashboardClient({ restaurant }: { restaurant: Resta
       {/* Stat cards */}
       <div className="grid grid-cols-3 gap-3">
         {isLoading ? (
-          [1, 2, 3].map((n) => <Skeleton key={n} className="h-20 rounded-xl" />)
+          [1, 2, 3].map((n) => <Skeleton key={n} className="h-[88px] rounded-xl" />)
         ) : (
           <>
             <StatCard

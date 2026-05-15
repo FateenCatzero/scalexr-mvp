@@ -51,22 +51,22 @@ export default function CartSheet({ open, onClose, restaurantSlug }: CartSheetPr
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => updateQuantity(menuItem.id, quantity - 1)}
-                      className="w-7 h-7 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
+                      className="w-9 h-9 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
                     >
-                      <Minus className="w-3 h-3" />
+                      <Minus className="w-3.5 h-3.5" />
                     </button>
                     <span className="w-6 text-center text-sm font-medium">{quantity}</span>
                     <button
                       onClick={() => updateQuantity(menuItem.id, quantity + 1)}
-                      className="w-7 h-7 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
+                      className="w-9 h-9 rounded-full border flex items-center justify-center hover:bg-muted transition-colors"
                     >
-                      <Plus className="w-3 h-3" />
+                      <Plus className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => removeItem(menuItem.id)}
-                      className="w-7 h-7 rounded-full flex items-center justify-center text-destructive hover:bg-destructive/10 transition-colors ml-1"
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-destructive hover:bg-destructive/10 transition-colors ml-1"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>

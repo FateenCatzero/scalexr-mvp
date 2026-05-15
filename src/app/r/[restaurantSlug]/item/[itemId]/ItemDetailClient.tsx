@@ -171,11 +171,6 @@ export default function ItemDetailClient({
           </div>
         )}
 
-        {justAdded && quantity === 0 && (
-          <p className="text-center text-sm text-green-600 mt-2 animate-pulse">
-            ✓ Added to cart
-          </p>
-        )}
       </div>
 
       {/* Floating cart button */}

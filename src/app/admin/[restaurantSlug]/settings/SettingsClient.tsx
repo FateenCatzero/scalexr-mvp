@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -39,7 +40,7 @@ export default function SettingsClient({ restaurant }: { restaurant: Restaurant 
       },
     })
     setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    setTimeout(() => setSaved(false), 3000)
   }
 
   return (
@@ -76,7 +77,7 @@ export default function SettingsClient({ restaurant }: { restaurant: Restaurant 
         )}
 
         <Button type="submit" className="w-full" disabled={update.isPending}>
-          {update.isPending ? 'Saving…' : saved ? 'Saved!' : 'Save settings'}
+          {update.isPending ? 'Saving…' : saved ? <><Check className="w-4 h-4 inline mr-1" />Saved!</> : 'Save settings'}
         </Button>
       </form>
     </div>

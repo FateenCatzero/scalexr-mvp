@@ -53,6 +53,7 @@ export default function AdminMenuClient({ restaurant }: { restaurant: Restaurant
 function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
   const { data: items, isLoading } = useAdminMenuItems(restaurant.id)
   const deleteItem = useDeleteMenuItem()
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   return (
     <div className="px-4 space-y-3">
@@ -72,45 +73,63 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
         items.map((item) => (
           <div
             key={item.id}
-            className="flex items-center gap-3 rounded-xl border border-border bg-card p-3"
+            className="rounded-xl border border-border bg-card p-3"
           >
-            {item.image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={item.image_url}
-                alt={item.name}
-                className="w-14 h-14 rounded-lg object-cover shrink-0"
-              />
-            ) : (
-              <div className="w-14 h-14 rounded-lg bg-muted shrink-0" />
-            )}
-            <div className="flex-1 min-w-0">
-              <p className={['font-medium text-sm truncate', !item.is_available ? 'line-through text-muted-foreground' : ''].join(' ')}>
-                {item.name}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {formatPrice(item.price)}
-                {item.categories?.name ? ` · ${item.categories.name}` : ''}
-                {!item.is_available ? ' · Hidden' : ''}
-              </p>
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <Link href={`/admin/${restaurant.slug}/menu/${item.id}/edit`}>
-                <button className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors">
-                  <Pencil className="w-3.5 h-3.5" />
+            <div className="flex items-center gap-3">
+              {item.image_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={item.image_url}
+                  alt={item.name}
+                  className="w-14 h-14 rounded-lg object-cover shrink-0"
+                />
+              ) : (
+                <div className="w-14 h-14 rounded-lg bg-muted shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className={['font-medium text-sm truncate', !item.is_available ? 'line-through text-muted-foreground' : ''].join(' ')}>
+                  {item.name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {formatPrice(item.price)}
+                  {item.categories?.name ? ` · ${item.categories.name}` : ''}
+                  {!item.is_available ? ' · Hidden' : ''}
+                </p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <Link href={`/admin/${restaurant.slug}/menu/${item.id}/edit`}>
+                  <button className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                </Link>
+                <button
+                  onClick={() => setConfirmDeleteId(item.id)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-destructive/10 text-destructive transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
-              </Link>
-              <button
-                onClick={() => {
-                  if (confirm(`Delete "${item.name}"?`)) {
-                    deleteItem.mutate({ id: item.id, restaurantId: restaurant.id })
-                  }
-                }}
-                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-destructive/10 text-destructive transition-colors"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+              </div>
             </div>
+            {confirmDeleteId === item.id && (
+              <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
+                <p className="flex-1 text-xs text-destructive font-medium">Delete this item?</p>
+                <button
+                  onClick={() => setConfirmDeleteId(null)}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    deleteItem.mutate({ id: item.id, restaurantId: restaurant.id })
+                    setConfirmDeleteId(null)
+                  }}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
           </div>
         ))
       )}
@@ -126,6 +145,7 @@ function CategoriesTab({ restaurant }: { restaurant: Restaurant }) {
   const deleteCategory = useDeleteCategory()
   const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
+  const [confirmDeleteCatId, setConfirmDeleteCatId] = useState<string | null>(null)
 
   const handleAdd = async () => {
     if (!newName.trim()) return
@@ -171,19 +191,37 @@ function CategoriesTab({ restaurant }: { restaurant: Restaurant }) {
         categories.map((cat) => (
           <div
             key={cat.id}
-            className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3"
+            className="rounded-xl border border-border bg-card px-4 py-3"
           >
-            <p className="font-medium text-sm">{cat.name}</p>
-            <button
-              onClick={() => {
-                if (confirm(`Delete category "${cat.name}"?`)) {
-                  deleteCategory.mutate({ id: cat.id, restaurantId: restaurant.id })
-                }
-              }}
-              className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-destructive/10 text-destructive transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center justify-between">
+              <p className="font-medium text-sm">{cat.name}</p>
+              <button
+                onClick={() => setConfirmDeleteCatId(cat.id)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-destructive/10 text-destructive transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            {confirmDeleteCatId === cat.id && (
+              <div className="flex items-center gap-2 border-t border-border pt-3 mt-2">
+                <p className="flex-1 text-xs text-destructive font-medium">Delete this category?</p>
+                <button
+                  onClick={() => setConfirmDeleteCatId(null)}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    deleteCategory.mutate({ id: cat.id, restaurantId: restaurant.id })
+                    setConfirmDeleteCatId(null)
+                  }}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
           </div>
         ))
       )}

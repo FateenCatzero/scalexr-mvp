@@ -83,6 +83,7 @@ export default function WaiterClient({ restaurant }: WaiterClientProps) {
                 label: 'Cancel',
                 variant: 'danger',
                 loading: updateStatus.isPending,
+                requireConfirm: true,
                 onClick: () => updateStatus.mutate({ orderId: order.id, status: 'cancelled' }),
               },
             ]}
@@ -123,6 +124,7 @@ export default function WaiterClient({ restaurant }: WaiterClientProps) {
               {
                 label: 'Mark delivered',
                 loading: updateStatus.isPending,
+                requireConfirm: true,
                 onClick: () => updateStatus.mutate({ orderId: order.id, status: 'delivered' }),
               },
             ]}
