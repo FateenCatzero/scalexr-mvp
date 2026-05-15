@@ -6,7 +6,7 @@ import type { Restaurant } from '@/lib/types'
 
 type Props = {
   params: Promise<{ restaurantSlug: string }>
-  searchParams: Promise<{ table?: string }>
+  searchParams: Promise<{ table?: string; orderId?: string }>
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function MenuPage({ params, searchParams }: Props) {
   const { restaurantSlug } = await params
-  const { table } = await searchParams
+  const { table, orderId } = await searchParams
 
   const supabase = await createClient()
   const { data: restaurant } = await supabase
@@ -38,6 +38,7 @@ export default async function MenuPage({ params, searchParams }: Props) {
     <MenuPageClient
       restaurant={restaurant as Restaurant}
       tableNumber={table}
+      confirmedOrderId={orderId}
     />
   )
 }

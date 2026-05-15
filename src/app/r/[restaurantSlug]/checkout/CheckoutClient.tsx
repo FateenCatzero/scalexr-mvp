@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -16,7 +16,6 @@ import { useOrderStore } from '@/lib/store/orderStore'
 import { useCreateOrder } from '@/lib/queries/orders'
 import { useRestaurant } from '@/lib/queries/restaurant'
 import { formatPrice } from '@/lib/utils'
-import OrderDetailSheet from '@/components/customer/OrderDetailSheet'
 
 const schema = z.object({
   customerName: z.string().min(1, 'Name is required'),
@@ -40,7 +39,6 @@ export default function CheckoutClient({
   const addOrder = useOrderStore((s) => s.addOrder)
   const { data: restaurant } = useRestaurant(restaurantSlug)
   const createOrder = useCreateOrder()
-  const [confirmedOrderId, setConfirmedOrderId] = useState<string | null>(null)
 
   const {
     register,
@@ -67,22 +65,16 @@ export default function CheckoutClient({
     clearCart()
     addOrder({ id: order.id, restaurantSlug, createdAt: order.created_at })
     toast.success('Order placed!')
-    setConfirmedOrderId(order.id)
+    router.push(`/r/${restaurantSlug}?orderId=${order.id}`)
   }
 
-  if (items.length === 0 && !confirmedOrderId) return null
+  if (items.length === 0) return null
 
   return (
-    <>
-    <OrderDetailSheet
-      orderId={confirmedOrderId}
-      open={!!confirmedOrderId}
-      onClose={() => router.push(`/r/${restaurantSlug}`)}
-    />
     <MobileShell className="px-4">
       <div className="pt-4 pb-2 flex items-center gap-2">
         <Link
-          href={`/r/${restaurantSlug}/cart`}
+          href={`/r/${restaurantSlug}`}
           className="text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -169,7 +161,7 @@ export default function CheckoutClient({
         </Button>
 
         <p className="text-xs text-muted-foreground text-center">
-          A waiter will be with you in a moment to confirm your order, Thankyou for your patience!
+          A waiter will be with you in a moment to confirm your order.
         </p>
 
         {createOrder.isError && (
@@ -179,6 +171,5 @@ export default function CheckoutClient({
         )}
       </form>
     </MobileShell>
-    </>
   )
 }

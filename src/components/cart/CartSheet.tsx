@@ -82,7 +82,7 @@ export default function CartSheet({ open, onClose, restaurantSlug }: CartSheetPr
             </div>
 
             <Button onClick={handleCheckout} className="w-full" size="lg">
-              Proceed to checkout
+              Continue
             </Button>
           </>
         )}

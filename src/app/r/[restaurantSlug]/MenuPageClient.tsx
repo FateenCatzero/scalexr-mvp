@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { ClipboardList } from 'lucide-react'
 import { trackEvent } from '@/lib/analytics'
 import MobileShell from '@/components/layout/MobileShell'
@@ -8,6 +9,7 @@ import MenuGrid from '@/components/menu/MenuGrid'
 import CartButton from '@/components/cart/CartButton'
 import CartSheet from '@/components/cart/CartSheet'
 import OrdersSheet from '@/components/customer/OrdersSheet'
+import OrderDetailSheet from '@/components/customer/OrderDetailSheet'
 import { useOrderStore } from '@/lib/store/orderStore'
 import { useCartStore } from '@/lib/store/cartStore'
 import type { Restaurant } from '@/lib/types'
@@ -15,14 +17,18 @@ import type { Restaurant } from '@/lib/types'
 interface MenuPageClientProps {
   restaurant: Restaurant
   tableNumber?: string
+  confirmedOrderId?: string
 }
 
 export default function MenuPageClient({
   restaurant,
   tableNumber,
+  confirmedOrderId,
 }: MenuPageClientProps) {
+  const router = useRouter()
   const [cartOpen, setCartOpen] = useState(false)
   const [ordersOpen, setOrdersOpen] = useState(false)
+  const [orderConfirmId, setOrderConfirmId] = useState<string | null>(confirmedOrderId ?? null)
   const { orders } = useOrderStore()
   const setTableNumber = useCartStore((s) => s.setTableNumber)
 
@@ -85,6 +91,15 @@ export default function MenuPageClient({
         open={ordersOpen}
         onClose={() => setOrdersOpen(false)}
         restaurantSlug={restaurant.slug}
+      />
+
+      <OrderDetailSheet
+        orderId={orderConfirmId}
+        open={!!orderConfirmId}
+        onClose={() => {
+          setOrderConfirmId(null)
+          router.replace(`/r/${restaurant.slug}`)
+        }}
       />
     </MobileShell>
   )
