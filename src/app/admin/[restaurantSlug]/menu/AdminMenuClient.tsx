@@ -367,10 +367,16 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
   const handleUnregister = (id: string) => {
     submitRefs.current.delete(id)
     resetRefs.current.delete(id)
-    setDirtyIds((prev) => { const n = new Set(prev); n.delete(id); return n })
+    setDirtyIds((prev) => {
+      if (!prev.has(id)) return prev
+      const n = new Set(prev); n.delete(id); return n
+    })
   }
   const handleDirtyChange = (id: string, dirty: boolean) => {
     setDirtyIds((prev) => {
+      // Return same reference when nothing changes — prevents infinite re-render loop
+      // caused by the inline onDirtyChange prop changing reference on every render
+      if (dirty === prev.has(id)) return prev
       const n = new Set(prev)
       if (dirty) n.add(id); else n.delete(id)
       return n
