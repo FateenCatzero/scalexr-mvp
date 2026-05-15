@@ -145,7 +145,7 @@ export default function ItemDetailClient({
               // gesture chain that can be silently invalidated by Safari
               <a
                 rel="ar"
-                href={usdzAsset!.public_url}
+                href={usdzAsset!.public_url ?? ''}
                 className="relative flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-md border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
               >
                 {/* img must be first child for iOS Quick Look — covers button area, invisible */}
