@@ -23,7 +23,12 @@ export default function OrderCard({ order, actions, onEdit }: OrderCardProps) {
   const [confirmingLabel, setConfirmingLabel] = useState<string | null>(null)
 
   const handleActionClick = (action: Action) => {
-    if (action.requireConfirm && confirmingLabel !== action.label) {
+    if (action.requireConfirm) {
+      if (confirmingLabel === action.label) {
+        // Clicking the same button again dismisses the confirmation
+        setConfirmingLabel(null)
+        return
+      }
       setConfirmingLabel(action.label)
       return
     }
@@ -86,23 +91,26 @@ export default function OrderCard({ order, actions, onEdit }: OrderCardProps) {
             <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2">
               <p className="flex-1 text-xs font-medium">Are you sure?</p>
               <button
-                onClick={() => setConfirmingLabel(null)}
-                className="text-xs px-3 py-1.5 rounded-lg border border-border bg-background hover:bg-muted transition-colors"
-              >
-                No
-              </button>
-              <button
                 onClick={() => {
                   const action = actions.find((a) => a.label === confirmingLabel)
-                  if (action) handleActionClick(action)
+                  if (action) {
+                    setConfirmingLabel(null)
+                    action.onClick()
+                  }
                 }}
-                className="text-xs px-3 py-1.5 rounded-lg bg-foreground text-background hover:opacity-90 transition-colors"
+                className="text-xs px-3 py-1.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
               >
                 Yes, {confirmingLabel.toLowerCase()}
               </button>
+              <button
+                onClick={() => setConfirmingLabel(null)}
+                className="text-xs px-3 py-1.5 rounded-lg bg-foreground text-background hover:opacity-90 transition-colors"
+              >
+                No
+              </button>
             </div>
           )}
-          <div className="flex gap-2">
+          <div className="flex gap-2 mt-1">
             {actions.map((action) => (
               <button
                 key={action.label}
