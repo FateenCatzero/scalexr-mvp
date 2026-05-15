@@ -93,8 +93,8 @@ export default function OrdersSheet({ open, onClose, restaurantSlug }: OrdersShe
                         </p>
                         <p className="text-xs text-muted-foreground mt-1 truncate">
                           {order.order_items
-                            .map((i: { quantity: number; menu_items: { name: string }[] }) =>
-                              `${i.menu_items[0]?.name} ×${i.quantity}`
+                            .map((i: { quantity: number; menu_items: { name: string } | null }) =>
+                              `${i.menu_items?.name ?? 'Deleted item'} ×${i.quantity}`
                             )
                             .join(', ')}
                         </p>

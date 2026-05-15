@@ -114,7 +114,7 @@ export default function OrderDetailSheet({ orderId, open, onClose }: OrderDetail
               {order.order_items.map((item) => (
                 <div key={item.id} className="flex justify-between text-sm">
                   <span className="text-muted-foreground">
-                    {item.menu_items.name} × {item.quantity}
+                    {item.menu_items?.name ?? 'Deleted item'} × {item.quantity}
                   </span>
                   <span>{formatPrice(Number(item.unit_price) * item.quantity)}</span>
                 </div>
