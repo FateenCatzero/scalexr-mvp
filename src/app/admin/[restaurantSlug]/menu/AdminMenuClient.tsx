@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, Box } from 'lucide-react'
+import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, Box, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -10,6 +10,7 @@ import {
   useAdminCategories,
   useAdminMenuItems,
   useCreateCategory,
+  useUpdateCategory,
   useDeleteCategory,
   useDeleteMenuItem,
 } from '@/lib/queries/admin'
@@ -157,9 +158,12 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
 function CategoriesTab({ restaurant }: { restaurant: Restaurant }) {
   const { data: categories, isLoading } = useAdminCategories(restaurant.id)
   const createCategory = useCreateCategory()
+  const updateCategory = useUpdateCategory()
   const deleteCategory = useDeleteCategory()
   const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
   const [confirmDeleteCatId, setConfirmDeleteCatId] = useState<string | null>(null)
 
   const handleAdd = async () => {
@@ -170,6 +174,23 @@ function CategoriesTab({ restaurant }: { restaurant: Restaurant }) {
     })
     setNewName('')
     setAdding(false)
+  }
+
+  const startEdit = (id: string, name: string) => {
+    setConfirmDeleteCatId(null)
+    setEditingId(id)
+    setEditName(name)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingId || !editName.trim()) return
+    await updateCategory.mutateAsync({ id: editingId, name: editName.trim() })
+    setEditingId(null)
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditName('')
   }
 
   return (
@@ -208,15 +229,51 @@ function CategoriesTab({ restaurant }: { restaurant: Restaurant }) {
             key={cat.id}
             className="rounded-xl border border-border bg-card px-4 py-3"
           >
-            <div className="flex items-center justify-between">
-              <p className="font-medium text-sm">{cat.name}</p>
-              <button
-                onClick={() => setConfirmDeleteCatId(cat.id)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-destructive/10 text-destructive transition-colors"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            {editingId === cat.id ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  autoFocus
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveEdit()
+                    if (e.key === 'Escape') cancelEdit()
+                  }}
+                  className="h-8 text-sm"
+                />
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={updateCategory.isPending}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-foreground disabled:opacity-50"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={cancelEdit}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <p className="font-medium text-sm">{cat.name}</p>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => startEdit(cat.id, cat.name)}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setConfirmDeleteCatId(cat.id)}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-destructive/10 text-destructive transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
             {confirmDeleteCatId === cat.id && (
               <div className="flex items-center gap-2 border-t border-border pt-3 mt-2">
                 <p className="flex-1 text-xs text-destructive font-medium">Delete this category?</p>
