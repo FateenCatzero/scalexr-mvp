@@ -36,7 +36,14 @@ export default function ItemCard({ item, restaurantSlug }: ItemCardProps) {
               No image
             </div>
           )}
-          {(item.has_3d_model || item.has_ar) && (
+          {item.is_out_of_stock && (
+            <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
+              <span className="bg-background text-foreground text-xs font-semibold px-2 py-1 rounded-full border border-border">
+                Out of stock
+              </span>
+            </div>
+          )}
+          {(item.has_3d_model || item.has_ar) && !item.is_out_of_stock && (
             <div className="absolute top-2 left-2 flex gap-1">
               {item.has_3d_model && (
                 <Badge variant="secondary" className="text-xs px-1.5 py-0">
@@ -68,7 +75,9 @@ export default function ItemCard({ item, restaurantSlug }: ItemCardProps) {
         <div className="flex items-center justify-between mt-2">
           <span className="font-semibold text-sm">{formatPrice(item.price)}</span>
 
-          {quantity === 0 ? (
+          {item.is_out_of_stock ? (
+            <span className="text-xs text-muted-foreground">Unavailable</span>
+          ) : quantity === 0 ? (
             <button
               onClick={() => addItem(item)}
               className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center hover:opacity-80 transition-opacity"

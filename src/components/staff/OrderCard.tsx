@@ -79,8 +79,8 @@ export default function OrderCard({ order, actions, onEdit }: OrderCardProps) {
       </ul>
 
       {order.customer_note && (
-        <p className="text-xs text-muted-foreground italic border-t border-border pt-2">
-          Note: {order.customer_note}
+        <p className="text-sm text-foreground border-t border-border pt-2">
+          <span className="font-medium">Note:</span> {order.customer_note}
         </p>
       )}
 

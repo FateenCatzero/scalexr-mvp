@@ -42,6 +42,7 @@ const itemSchema = z.object({
   category_id: z.string().nullable().optional(),
   image_url: z.string().nullable().optional(),
   is_available: z.boolean(),
+  is_out_of_stock: z.boolean(),
 })
 type ItemFormValues = z.infer<typeof itemSchema>
 
@@ -122,6 +123,7 @@ function InlineItemForm({
       category_id: defaultValues?.category_id ?? null,
       image_url: defaultValues?.image_url ?? null,
       is_available: defaultValues?.is_available ?? true,
+      is_out_of_stock: defaultValues?.is_out_of_stock ?? false,
     },
   })
 
@@ -214,6 +216,17 @@ function InlineItemForm({
         />
       </div>
 
+      <div className="flex items-center justify-between py-0.5">
+        <Label className="text-xs">Out of stock</Label>
+        <Controller
+          name="is_out_of_stock"
+          control={control}
+          render={({ field }) => (
+            <Switch checked={field.value} onCheckedChange={field.onChange} />
+          )}
+        />
+      </div>
+
       {itemId && (
         <div className="space-y-1.5">
           <p className="text-xs font-medium">3D & AR models</p>
@@ -276,6 +289,7 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
       category_id: values.category_id || null,
       image_url: values.image_url || null,
       is_available: values.is_available,
+      is_out_of_stock: values.is_out_of_stock,
     })
     setAddingNew(false)
   }
@@ -289,6 +303,7 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
       category_id: values.category_id || null,
       image_url: values.image_url || null,
       is_available: values.is_available,
+      is_out_of_stock: values.is_out_of_stock,
     })
     setExpandedId(null)
   }
@@ -364,6 +379,7 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
                     {formatPrice(item.price)}
                     {item.categories?.name ? ` · ${item.categories.name}` : ''}
                     {!item.is_available ? ' · Hidden' : ''}
+                    {item.is_out_of_stock ? ' · Out of stock' : ''}
                   </p>
                 </div>
                 {isExpanded

@@ -13,17 +13,18 @@ interface MenuGridProps {
 
 export default function MenuGrid({ restaurant }: MenuGridProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [inStockOnly, setInStockOnly] = useState(false)
 
   const { data: categories, isLoading: loadingCats } = useCategories(restaurant.id)
-  const { data: items, isLoading: loadingItems } = useMenuItems(
-    restaurant.id,
-    selectedCategory
-  )
+  const { data: allItems, isLoading: loadingItems } = useMenuItems(restaurant.id, selectedCategory)
+
+  const hasOutOfStock = allItems?.some((i) => i.is_out_of_stock) ?? false
+  const items = inStockOnly ? allItems?.filter((i) => !i.is_out_of_stock) : allItems
 
   return (
     <div className="pb-28">
-      {/* Category filter */}
-      <div className="py-3 sticky top-0 bg-background/95 backdrop-blur z-10 border-b border-border">
+      {/* Category filter + in-stock toggle */}
+      <div className="py-3 sticky top-0 bg-background/95 backdrop-blur z-10 border-b border-border space-y-2">
         {loadingCats ? (
           <div className="flex gap-2 px-4">
             {[1, 2, 3, 4].map((n) => (
@@ -36,6 +37,23 @@ export default function MenuGrid({ restaurant }: MenuGridProps) {
             selected={selectedCategory}
             onSelect={setSelectedCategory}
           />
+        )}
+
+        {hasOutOfStock && (
+          <div className="px-4">
+            <button
+              onClick={() => setInStockOnly((v) => !v)}
+              className={[
+                'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                inStockOnly
+                  ? 'bg-foreground text-background border-foreground'
+                  : 'border-border text-muted-foreground hover:text-foreground',
+              ].join(' ')}
+            >
+              <span className={['w-2 h-2 rounded-full', inStockOnly ? 'bg-background' : 'bg-green-500'].join(' ')} />
+              In stock only
+            </button>
+          </div>
         )}
       </div>
 

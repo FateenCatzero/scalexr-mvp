@@ -164,6 +164,7 @@ interface MenuItemInput {
   price: number
   image_url: string | null
   is_available: boolean
+  is_out_of_stock?: boolean
 }
 
 export function useCreateMenuItem() {
@@ -402,19 +403,39 @@ function getAnalyticsPeriodStart(period: AnalyticsPeriod): Date {
 export function useAnalytics(restaurantId: string, period: AnalyticsPeriod = 'today') {
   return useQuery({
     queryKey: ['analytics', restaurantId, period],
+    refetchInterval: 30_000,
     queryFn: async () => {
       const supabase = createClient()
       const since = getAnalyticsPeriodStart(period).toISOString()
 
-      const { data, error } = await supabase
-        .from('analytics_events')
-        .select('event_type, payload, created_at')
-        .eq('restaurant_id', restaurantId)
-        .gte('created_at', since)
-        .order('created_at', { ascending: false })
+      const [eventsRes, ordersRes, revenueRes, itemsRes] = await Promise.all([
+        supabase
+          .from('analytics_events')
+          .select('event_type, payload, created_at')
+          .eq('restaurant_id', restaurantId)
+          .gte('created_at', since)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('restaurant_id', restaurantId)
+          .gte('created_at', since)
+          .neq('status', 'cancelled'),
+        supabase
+          .from('orders')
+          .select('total_amount')
+          .eq('restaurant_id', restaurantId)
+          .gte('created_at', since)
+          .neq('status', 'cancelled'),
+        supabase
+          .from('menu_items')
+          .select('id', { count: 'exact', head: true })
+          .eq('restaurant_id', restaurantId)
+          .eq('is_available', true),
+      ])
 
-      if (error) throw error
-      const events = (data ?? []) as Pick<AnalyticsEvent, 'event_type' | 'payload' | 'created_at'>[]
+      if (eventsRes.error) throw eventsRes.error
+      const events = (eventsRes.data ?? []) as Pick<AnalyticsEvent, 'event_type' | 'payload' | 'created_at'>[]
 
       const counts: Record<string, number> = {}
       const itemCounts: Record<string, { name: string; ar: number; views3d: number; views: number }> = {}
@@ -436,13 +457,18 @@ export function useAnalytics(restaurantId: string, period: AnalyticsPeriod = 'to
         .sort((a, b) => (b.ar + b.views3d) - (a.ar + a.views3d))
         .slice(0, 10)
 
-      const menuViews = counts['menu_view'] ?? 0
-      const itemViews = counts['item_view'] ?? 0
-      const arViews = counts['ar_view'] ?? 0
-      const views3d = counts['3d_view'] ?? 0
-      const arRate = itemViews > 0 ? Math.round((arViews / itemViews) * 100) : 0
+      const revenue = (revenueRes.data ?? []).reduce((sum, o) => sum + Number(o.total_amount), 0)
 
-      return { menuViews, itemViews, arViews, views3d, arRate, topItems }
+      return {
+        menuViews: counts['menu_view'] ?? 0,
+        itemViews: counts['item_view'] ?? 0,
+        arViews: counts['ar_view'] ?? 0,
+        views3d: counts['3d_view'] ?? 0,
+        orders: ordersRes.count ?? 0,
+        revenue,
+        activeItems: itemsRes.count ?? 0,
+        topItems,
+      }
     },
     enabled: !!restaurantId,
   })

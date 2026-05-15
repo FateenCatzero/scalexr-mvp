@@ -102,7 +102,6 @@ export default function WaiterClient({ restaurant }: WaiterClientProps) {
           <OrderCard
             key={order.id}
             order={order}
-            onEdit={() => setEditingOrder(order)}
             actions={[]}
           />
         ))}
@@ -119,7 +118,6 @@ export default function WaiterClient({ restaurant }: WaiterClientProps) {
           <OrderCard
             key={order.id}
             order={order}
-            onEdit={() => setEditingOrder(order)}
             actions={[
               {
                 label: 'Mark delivered',

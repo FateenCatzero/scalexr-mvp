@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Eye, Box, Scan, ShoppingBag, TrendingUp } from 'lucide-react'
+import { Eye, Box, Scan, ShoppingBag, TrendingUp, UtensilsCrossed } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAnalytics, type AnalyticsPeriod } from '@/lib/queries/admin'
 import type { Restaurant } from '@/lib/types'
@@ -41,20 +41,17 @@ export default function AnalyticsClient({ restaurant }: { restaurant: Restaurant
       {/* Metric cards */}
       {isLoading ? (
         <div className="grid grid-cols-2 gap-3">
-          {[1, 2, 3, 4, 5].map((n) => <Skeleton key={n} className="h-[88px] rounded-xl" />)}
+          {[1, 2, 3, 4, 5, 6, 7].map((n) => <Skeleton key={n} className="h-[88px] rounded-xl" />)}
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3">
+          <MetricCard icon={<ShoppingBag className="w-4 h-4" />} label="Orders" value={data?.orders ?? 0} />
+          <MetricCard icon={<TrendingUp className="w-4 h-4" />} label="Revenue" value={`PKR ${(data?.revenue ?? 0).toLocaleString()}`} />
+          <MetricCard icon={<UtensilsCrossed className="w-4 h-4" />} label="Active items" value={data?.activeItems ?? 0} />
           <MetricCard icon={<Eye className="w-4 h-4" />} label="Menu views" value={data?.menuViews ?? 0} />
-          <MetricCard icon={<ShoppingBag className="w-4 h-4" />} label="Item views" value={data?.itemViews ?? 0} />
+          <MetricCard icon={<Eye className="w-4 h-4" />} label="Item views" value={data?.itemViews ?? 0} />
           <MetricCard icon={<Box className="w-4 h-4" />} label="3D views" value={data?.views3d ?? 0} />
           <MetricCard icon={<Scan className="w-4 h-4" />} label="AR views" value={data?.arViews ?? 0} />
-          <MetricCard
-            icon={<TrendingUp className="w-4 h-4" />}
-            label="AR conversion"
-            value={`${data?.arRate ?? 0}%`}
-            wide
-          />
         </div>
       )}
 

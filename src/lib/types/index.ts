@@ -48,6 +48,7 @@ export type MenuItem = {
   has_3d_model: boolean
   has_ar: boolean
   is_available: boolean
+  is_out_of_stock: boolean
   sort_order: number
   created_at: string
   updated_at: string
