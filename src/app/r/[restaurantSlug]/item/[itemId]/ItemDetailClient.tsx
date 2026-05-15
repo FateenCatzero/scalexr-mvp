@@ -125,18 +125,19 @@ export default function ItemDetailClient({
 
           {showAR && (
             isIOS && usdzAsset?.public_url ? (
-              // iOS Quick Look — <a rel="ar"> with a rendered (non-hidden) img is required
+              // iOS Quick Look — <a rel="ar"> requires an <img> first child with real layout dimensions
               <a
                 rel="ar"
                 href={usdzAsset.public_url}
                 className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-md border border-input bg-background text-sm font-medium h-9 px-3 hover:bg-accent hover:text-accent-foreground transition-colors"
+                style={{ position: 'relative' }}
               >
-                {/* img child must be rendered (not display:none) for Quick Look to trigger */}
+                {/* img must cover the anchor with real dimensions (opacity:0) — width/height:0 breaks Quick Look detection */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={item.image_url ?? 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'}
                   alt=""
-                  style={{ width: 0, height: 0, position: 'absolute' }}
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, pointerEvents: 'none' }}
                 />
                 <Scan className="w-4 h-4" />
                 View in AR
