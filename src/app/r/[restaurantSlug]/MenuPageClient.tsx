@@ -29,6 +29,10 @@ export default function MenuPageClient({
   const [cartOpen, setCartOpen] = useState(false)
   const [ordersOpen, setOrdersOpen] = useState(false)
   const [orderConfirmId, setOrderConfirmId] = useState<string | null>(confirmedOrderId ?? null)
+
+  useEffect(() => {
+    if (confirmedOrderId) setOrderConfirmId(confirmedOrderId)
+  }, [confirmedOrderId])
   const { orders } = useOrderStore()
   const setTableNumber = useCartStore((s) => s.setTableNumber)
 
