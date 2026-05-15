@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { ArrowLeft, Box, Check, Minus, Plus } from 'lucide-react'
+import { ArrowLeft, Box, Check, Minus, Plus, Scan } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -18,7 +18,6 @@ const ModelViewer = dynamic(
   { ssr: false, loading: () => <Skeleton className="w-full h-72 rounded-xl" /> }
 )
 
-
 interface ItemDetailClientProps {
   item: MenuItemWithAssets
   restaurantSlug: string
@@ -31,6 +30,11 @@ export default function ItemDetailClient({
   const [show3D, setShow3D] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
   const [justAdded, setJustAdded] = useState(false)
+  const [isIOS, setIsIOS] = useState(false)
+
+  useEffect(() => {
+    setIsIOS(/iPhone|iPad|iPod/i.test(navigator.userAgent))
+  }, [])
 
   const addItem = useCartStore((s) => s.addItem)
   const updateQuantity = useCartStore((s) => s.updateQuantity)
@@ -49,6 +53,22 @@ export default function ItemDetailClient({
   }
 
   const handleView3D = () => setShow3D((v) => !v)
+
+  const handleAndroidAR = () => {
+    if (!glbAsset?.public_url) return
+    const intentUrl = [
+      'intent://arvr.google.com/scene-viewer/1.0',
+      `?file=${encodeURIComponent(glbAsset.public_url)}`,
+      '&mode=ar_preferred',
+      `&title=${encodeURIComponent(item.name)}`,
+      '#Intent;scheme=https;package=com.google.ar.core;',
+      'action=android.intent.action.VIEW;end;',
+    ].join('')
+    window.location.href = intentUrl
+  }
+
+  // Show AR button on iOS if USDZ exists, on Android if GLB exists
+  const showAR = item.has_ar && (isIOS ? !!usdzAsset?.public_url : !!glbAsset?.public_url)
 
   return (
     <div className="mx-auto max-w-md min-h-screen pb-28">
@@ -88,18 +108,52 @@ export default function ItemDetailClient({
         )}
       </div>
 
-      {/* 3D button — AR is inside the viewer */}
-      {item.has_3d_model && glbAsset?.public_url && (
-        <div className="px-4 mt-3">
-          <Button
-            variant={show3D ? 'default' : 'outline'}
-            size="sm"
-            onClick={handleView3D}
-            className="w-full gap-1.5"
-          >
-            <Box className="w-4 h-4" />
-            {show3D ? 'Show photo' : 'View in 3D'}
-          </Button>
+      {/* Action buttons */}
+      {(item.has_3d_model || showAR) && (
+        <div className="flex gap-2 px-4 mt-3">
+          {item.has_3d_model && glbAsset?.public_url && (
+            <Button
+              variant={show3D ? 'default' : 'outline'}
+              size="sm"
+              onClick={handleView3D}
+              className="flex-1 gap-1.5"
+            >
+              <Box className="w-4 h-4" />
+              {show3D ? 'Show photo' : 'View in 3D'}
+            </Button>
+          )}
+
+          {showAR && (
+            isIOS && usdzAsset?.public_url ? (
+              // iOS Quick Look — <a rel="ar"> with a rendered (non-hidden) img is required
+              <a
+                rel="ar"
+                href={usdzAsset.public_url}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-md border border-input bg-background text-sm font-medium h-9 px-3 hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                {/* img child must be rendered (not display:none) for Quick Look to trigger */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={item.image_url ?? 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'}
+                  alt=""
+                  style={{ width: 0, height: 0, position: 'absolute' }}
+                />
+                <Scan className="w-4 h-4" />
+                View in AR
+              </a>
+            ) : (
+              // Android — Scene Viewer intent
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAndroidAR}
+                className="flex-1 gap-1.5"
+              >
+                <Scan className="w-4 h-4" />
+                View in AR
+              </Button>
+            )
+          )}
         </div>
       )}
 

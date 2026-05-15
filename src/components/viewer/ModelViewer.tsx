@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect } from 'react'
-import { Scan } from 'lucide-react'
 
 interface ModelViewerProps {
   glbUrl: string
@@ -23,34 +22,13 @@ function loadModelViewerScript() {
   document.head.appendChild(s)
 }
 
-const TRANSPARENT_GIF =
-  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
-
-export default function ModelViewer({ glbUrl, usdzUrl, itemName }: ModelViewerProps) {
-  const isIOS =
-    typeof navigator !== 'undefined' &&
-    /iPhone|iPad|iPod/i.test(navigator.userAgent)
-
+export default function ModelViewer({ glbUrl, itemName }: ModelViewerProps) {
   useEffect(() => {
     loadModelViewerScript()
   }, [])
 
-  const handleAndroidAR = () => {
-    const intentUrl = [
-      'intent://arvr.google.com/scene-viewer/1.0',
-      `?file=${encodeURIComponent(glbUrl)}`,
-      '&mode=ar_preferred',
-      `&title=${encodeURIComponent(itemName)}`,
-      '#Intent;scheme=https;package=com.google.ar.core;',
-      'action=android.intent.action.VIEW;end;',
-    ].join('')
-    window.location.href = intentUrl
-  }
-
-  const showARButton = isIOS ? !!usdzUrl : !!glbUrl
-
   return (
-    <div className="w-full h-72 rounded-xl overflow-hidden bg-muted relative">
+    <div className="w-full h-72 rounded-xl overflow-hidden bg-muted">
       <model-viewer
         src={glbUrl}
         camera-controls
@@ -63,58 +41,6 @@ export default function ModelViewer({ glbUrl, usdzUrl, itemName }: ModelViewerPr
         auto-rotate-delay="500"
         rotation-per-second="30deg"
       />
-
-      {/* AR button — native Quick Look on iOS, Scene Viewer on Android */}
-      {showARButton && (
-        <div style={{ position: 'absolute', bottom: 12, right: 12 }}>
-          {isIOS && usdzUrl ? (
-            // iOS: <a rel="ar"> with img child is the ONLY reliable way to trigger Quick Look
-            <a
-              rel="ar"
-              href={usdzUrl}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: 'rgba(0,0,0,0.65)',
-                color: 'white',
-                textDecoration: 'none',
-                borderRadius: '999px',
-                padding: '8px 16px',
-                fontSize: '13px',
-                fontWeight: 500,
-              }}
-            >
-              {/* img child required for iOS Quick Look */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={TRANSPARENT_GIF} alt="" style={{ display: 'none' }} />
-              <Scan size={14} />
-              View in AR
-            </a>
-          ) : (
-            // Android: Scene Viewer intent
-            <button
-              onClick={handleAndroidAR}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: 'rgba(0,0,0,0.65)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '999px',
-                padding: '8px 16px',
-                fontSize: '13px',
-                fontWeight: 500,
-                cursor: 'pointer',
-              }}
-            >
-              <Scan size={14} />
-              View in AR
-            </button>
-          )}
-        </div>
-      )}
     </div>
   )
 }
