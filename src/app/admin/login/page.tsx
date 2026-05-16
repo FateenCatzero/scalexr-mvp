@@ -94,13 +94,9 @@ function AdminLoginInner() {
         router.push(returnTo ?? '/admin/master')
         return
       }
-      if (returnTo?.startsWith('/admin/')) {
-        router.push(returnTo)
-        return
-      }
       const { data: ru } = await supabase
         .from('restaurant_users')
-        .select('restaurant_id')
+        .select('restaurant_id, role')
         .eq('user_id', user.id)
         .single()
       if (ru?.restaurant_id) {
@@ -109,7 +105,13 @@ function AdminLoginInner() {
           .select('slug')
           .eq('id', ru.restaurant_id)
           .single()
-        if (restaurant?.slug) router.push(`/admin/${restaurant.slug}`)
+        if (restaurant?.slug) {
+          if (ru.role === 'restaurant_admin') {
+            router.push(returnTo ?? `/admin/${restaurant.slug}`)
+          } else {
+            router.push(`/staff/${restaurant.slug}`)
+          }
+        }
       }
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -182,13 +184,12 @@ function AdminLoginInner() {
       return
     }
 
-    // Look up which restaurant this user owns and redirect to its admin page.
-    // Two-step lookup: get restaurant_id first, then resolve the slug.
-    // Avoids relying on PostgREST's embedded join which can fail to resolve
-    // the FK when the schema cache is stale after migrations.
+    // Look up which restaurant this user belongs to and route by role.
+    // restaurant_admin → /admin/[slug], waiter/kitchen → /staff/[slug].
+    // Two-step lookup avoids PostgREST embedded join failures after migrations.
     const { data: ru } = await supabase
       .from('restaurant_users')
-      .select('restaurant_id')
+      .select('restaurant_id, role')
       .eq('user_id', user.id)
       .single()
 
@@ -205,7 +206,11 @@ function AdminLoginInner() {
       .single()
 
     if (restaurant?.slug) {
-      router.push(`/admin/${restaurant.slug}`)
+      if (ru.role === 'restaurant_admin') {
+        router.push(`/admin/${restaurant.slug}`)
+      } else {
+        router.push(`/staff/${restaurant.slug}`)
+      }
     } else {
       setError('No restaurant linked to this account.')
       setLoading(false)

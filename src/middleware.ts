@@ -89,12 +89,13 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(dest)
     }
 
-    // For restaurant admins, look up their linked restaurant slug.
-    // Two-step: get restaurant_id then resolve slug — avoids the embedded join
+    // For non-master-admin users, look up their restaurant and role.
+    // Two-step: get restaurant_id + role then resolve slug — avoids the embedded join
     // which can fail when PostgREST's FK schema cache is stale after migrations.
+    // Route by role: restaurant_admin → /admin/[slug], waiter/kitchen → /staff/[slug].
     const { data: ru } = await supabase
       .from('restaurant_users')
-      .select('restaurant_id')
+      .select('restaurant_id, role')
       .eq('user_id', user.id)
       .single()
     if (ru?.restaurant_id) {
@@ -106,8 +107,13 @@ export async function middleware(request: NextRequest) {
       const slug = restaurant?.slug
       if (slug) {
         const dest = request.nextUrl.clone()
-        dest.pathname = returnTo && returnTo.startsWith(`/admin/${slug}`) ? returnTo : `/admin/${slug}`
         dest.search = ''
+        if (ru.role === 'restaurant_admin') {
+          dest.pathname = returnTo && returnTo.startsWith(`/admin/${slug}`) ? returnTo : `/admin/${slug}`
+        } else {
+          // waiter / kitchen → staff portal, not admin panel
+          dest.pathname = returnTo && returnTo.startsWith(`/staff/${slug}`) ? returnTo : `/staff/${slug}`
+        }
         return NextResponse.redirect(dest)
       }
     }
