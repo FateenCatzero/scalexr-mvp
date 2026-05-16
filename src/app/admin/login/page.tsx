@@ -98,14 +98,19 @@ function AdminLoginInner() {
         router.push(returnTo)
         return
       }
-      const { data } = await supabase
+      const { data: ru } = await supabase
         .from('restaurant_users')
-        .select('restaurants(slug)')
+        .select('restaurant_id')
         .eq('user_id', user.id)
         .single()
-      const r = Array.isArray(data?.restaurants) ? data.restaurants[0] : data?.restaurants
-      const slug = (r as { slug: string } | null)?.slug
-      if (slug) router.push(`/admin/${slug}`)
+      if (ru?.restaurant_id) {
+        const { data: restaurant } = await supabase
+          .from('restaurants')
+          .select('slug')
+          .eq('id', ru.restaurant_id)
+          .single()
+        if (restaurant?.slug) router.push(`/admin/${restaurant.slug}`)
+      }
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -178,15 +183,29 @@ function AdminLoginInner() {
     }
 
     // Look up which restaurant this user owns and redirect to its admin page.
-    const { data } = await supabase
+    // Two-step lookup: get restaurant_id first, then resolve the slug.
+    // Avoids relying on PostgREST's embedded join which can fail to resolve
+    // the FK when the schema cache is stale after migrations.
+    const { data: ru } = await supabase
       .from('restaurant_users')
-      .select('restaurants(slug)')
+      .select('restaurant_id')
       .eq('user_id', user.id)
       .single()
-    const r = Array.isArray(data?.restaurants) ? data.restaurants[0] : data?.restaurants
-    const slug = (r as { slug: string } | null)?.slug
-    if (slug) {
-      router.push(`/admin/${slug}`)
+
+    if (!ru?.restaurant_id) {
+      setError('No restaurant linked to this account.')
+      setLoading(false)
+      return
+    }
+
+    const { data: restaurant } = await supabase
+      .from('restaurants')
+      .select('slug')
+      .eq('id', ru.restaurant_id)
+      .single()
+
+    if (restaurant?.slug) {
+      router.push(`/admin/${restaurant.slug}`)
     } else {
       setError('No restaurant linked to this account.')
       setLoading(false)

@@ -89,19 +89,27 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(dest)
     }
 
-    // For restaurant admins, look up their linked restaurant slug
-    const { data } = await supabase
+    // For restaurant admins, look up their linked restaurant slug.
+    // Two-step: get restaurant_id then resolve slug — avoids the embedded join
+    // which can fail when PostgREST's FK schema cache is stale after migrations.
+    const { data: ru } = await supabase
       .from('restaurant_users')
-      .select('restaurants(slug)')
+      .select('restaurant_id')
       .eq('user_id', user.id)
       .single()
-    const r = Array.isArray(data?.restaurants) ? data.restaurants[0] : data?.restaurants
-    const slug = (r as { slug: string } | null)?.slug
-    if (slug) {
-      const dest = request.nextUrl.clone()
-      dest.pathname = returnTo && returnTo.startsWith(`/admin/${slug}`) ? returnTo : `/admin/${slug}`
-      dest.search = ''
-      return NextResponse.redirect(dest)
+    if (ru?.restaurant_id) {
+      const { data: restaurant } = await supabase
+        .from('restaurants')
+        .select('slug')
+        .eq('id', ru.restaurant_id)
+        .single()
+      const slug = restaurant?.slug
+      if (slug) {
+        const dest = request.nextUrl.clone()
+        dest.pathname = returnTo && returnTo.startsWith(`/admin/${slug}`) ? returnTo : `/admin/${slug}`
+        dest.search = ''
+        return NextResponse.redirect(dest)
+      }
     }
   }
 

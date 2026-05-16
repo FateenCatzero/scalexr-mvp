@@ -160,16 +160,22 @@ export async function requireRestaurantAdminAccess(
   // restaurant_admin: must have a restaurant_users row with role='restaurant_admin'
   // for the exact restaurant being accessed. The role='restaurant_admin' filter is
   // critical — without it, a waiter who somehow has a restaurant_users entry would pass.
-  const { data: access } = await supabase
+  // Two-step lookup: get restaurant_id from restaurant_users, then fetch restaurant details.
+  // Avoids the embedded join which can fail when PostgREST's FK schema cache is stale.
+  const { data: ru } = await supabase
     .from('restaurant_users')
-    .select('restaurants(id, name, slug)')
+    .select('restaurant_id')
     .eq('user_id', user.id)
     .eq('role', 'restaurant_admin')
     .single()
 
-  const restaurant = (
-    Array.isArray(access?.restaurants) ? access.restaurants[0] : access?.restaurants
-  ) as { id: string; name: string; slug: string } | null
+  if (!ru?.restaurant_id) return null
+
+  const { data: restaurant } = await supabase
+    .from('restaurants')
+    .select('id, name, slug')
+    .eq('id', ru.restaurant_id)
+    .single()
 
   // Deny if no restaurant linked, or if the slug doesn't match the requested route.
   // This prevents a restaurant_admin from accessing a different restaurant's panel.
