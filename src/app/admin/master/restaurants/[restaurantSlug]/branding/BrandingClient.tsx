@@ -14,7 +14,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Upload, Check } from 'lucide-react'
+import { ArrowLeft, Upload, Check, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -74,6 +74,26 @@ type Draft = {
   allow_feature_toggle_edit: boolean
 }
 
+// Matches the DEFAULT values from migration 012 — used by "Reset to defaults".
+const DEFAULT_DRAFT: Draft = {
+  logo_url:                  null,
+  primary_color:             '#09090b',
+  secondary_color:           '#18181b',
+  accent_color:              '#f97316',
+  background_type:           'solid',
+  background_value:          '#ffffff',
+  button_style:              'rounded',
+  font_family:               'inter',
+  customer_theme_enabled:    false,
+  admin_theme_enabled:       false,
+  waiter_theme_enabled:      false,
+  kitchen_theme_enabled:     false,
+  allow_logo_edit:           true,
+  allow_color_edit:          false,
+  allow_menu_edit:           true,
+  allow_feature_toggle_edit: false,
+}
+
 function toDraft(s: RestaurantSettings): Draft {
   return {
     logo_url:                  s.logo_url,
@@ -107,8 +127,9 @@ export default function BrandingClient({
   const save = useMasterSaveBranding()
   const [draft, setDraft]       = useState<Draft>(() => toDraft(settings))
   const [baseline, setBaseline] = useState<Draft>(() => toDraft(settings))
-  const [uploading, setUploading] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [uploading, setUploading]       = useState(false)
+  const [saved, setSaved]               = useState(false)
+  const [confirmReset, setConfirmReset] = useState(false)
 
   const isDirty = JSON.stringify(draft) !== JSON.stringify(baseline)
 
@@ -154,10 +175,18 @@ export default function BrandingClient({
         >
           <ArrowLeft className="w-4 h-4" />
         </Link>
-        <div>
+        <div className="flex-1 min-w-0">
           <h1 className="font-bold text-base leading-tight">Branding</h1>
           <p className="text-xs text-muted-foreground">{restaurant.name}</p>
         </div>
+        <button
+          onClick={() => setConfirmReset(true)}
+          className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-xs text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors shrink-0"
+          title="Reset all branding to platform defaults"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          Reset
+        </button>
       </div>
 
       {/* ── Logo ── */}
@@ -367,6 +396,29 @@ export default function BrandingClient({
           ))}
         </div>
       </section>
+
+      {/* ── Reset confirmation ── */}
+      {confirmReset && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 space-y-3">
+          <p className="text-sm font-medium text-destructive">Reset all branding to defaults?</p>
+          <p className="text-xs text-muted-foreground">
+            This will clear the logo, restore default colors, font, and background, turn off all portal themes, and reset permissions. You can still cancel before saving.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="destructive"
+              className="flex-1"
+              onClick={() => { setDraft(DEFAULT_DRAFT); setConfirmReset(false) }}
+            >
+              Confirm reset
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setConfirmReset(false)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* ── Save / Cancel ── */}
       {isDirty && (
