@@ -23,7 +23,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   Plus, Power, PowerOff, Check, X, Store,
-  Users, CalendarPlus, ShoppingBag, Settings, LayoutDashboard,
+  Users, CalendarPlus, ShoppingBag, Settings, LayoutDashboard, Zap,
 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -32,6 +32,14 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { formatPrice } from '@/lib/utils'
 import {
   useMasterRestaurants,
@@ -39,8 +47,22 @@ import {
   useMasterToggleRestaurant,
   useMasterUpdateRestaurant,
   useMasterPlatformStats,
+  useMasterRestaurantFeatures,
+  useMasterToggleFeature,
+  useMasterAssignPlan,
+  useSubscriptionPlans,
 } from '@/lib/queries/master'
-import type { RestaurantWithStats } from '@/lib/types'
+import type { RestaurantWithStats, FeatureKey } from '@/lib/types'
+
+const FEATURE_LABELS: Record<FeatureKey, string> = {
+  ar_view:             'AR View',
+  '3d_view':           '3D View',
+  analytics:           'Analytics',
+  theme_customization: 'Theme Customization',
+  inventory_tracking:  'Inventory Tracking',
+  staff_management:    'Staff Management',
+  bulk_upload:         'Bulk Upload',
+}
 
 const createSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -250,6 +272,7 @@ function RestaurantCard({ restaurant: r }: { restaurant: RestaurantWithStats }) 
   const update = useMasterUpdateRestaurant()
   const [confirming, setConfirming] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showFeatures, setShowFeatures] = useState(false)
   const [settingsSaved, setSettingsSaved] = useState(false)
 
   const handleToggle = async () => {
@@ -294,18 +317,32 @@ function RestaurantCard({ restaurant: r }: { restaurant: RestaurantWithStats }) 
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">/r/{r.slug}</p>
         </div>
-        <button
-          onClick={() => { setShowSettings((v) => !v); setConfirming(false) }}
-          className={[
-            'flex items-center justify-center w-8 h-8 rounded-lg border transition-colors shrink-0',
-            showSettings
-              ? 'border-primary/40 bg-primary/10 text-primary'
-              : 'border-border hover:bg-muted text-muted-foreground',
-          ].join(' ')}
-          title="Restaurant settings"
-        >
-          <Settings className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex gap-1.5 shrink-0">
+          <button
+            onClick={() => { setShowFeatures((v) => !v); setShowSettings(false); setConfirming(false) }}
+            className={[
+              'flex items-center justify-center w-8 h-8 rounded-lg border transition-colors',
+              showFeatures
+                ? 'border-primary/40 bg-primary/10 text-primary'
+                : 'border-border hover:bg-muted text-muted-foreground',
+            ].join(' ')}
+            title="Feature flags"
+          >
+            <Zap className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => { setShowSettings((v) => !v); setShowFeatures(false); setConfirming(false) }}
+            className={[
+              'flex items-center justify-center w-8 h-8 rounded-lg border transition-colors',
+              showSettings
+                ? 'border-primary/40 bg-primary/10 text-primary'
+                : 'border-border hover:bg-muted text-muted-foreground',
+            ].join(' ')}
+            title="Restaurant settings"
+          >
+            <Settings className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* Inline settings panel */}
@@ -341,6 +378,11 @@ function RestaurantCard({ restaurant: r }: { restaurant: RestaurantWithStats }) 
             {update.isPending ? 'Saving…' : settingsSaved ? <><Check className="w-3.5 h-3.5 inline mr-1" />Saved!</> : 'Save settings'}
           </Button>
         </div>
+      )}
+
+      {/* Features panel */}
+      {showFeatures && (
+        <FeaturesPanel restaurantId={r.id} />
       )}
 
       {/* Stats row */}
@@ -395,6 +437,76 @@ function RestaurantCard({ restaurant: r }: { restaurant: RestaurantWithStats }) 
           </button>
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── FEATURES PANEL ───────────────────────────────────────────────────────────
+
+function FeaturesPanel({ restaurantId }: { restaurantId: string }) {
+  const { data: features, isLoading } = useMasterRestaurantFeatures(restaurantId)
+  const { data: plans } = useSubscriptionPlans()
+  const toggleFeature = useMasterToggleFeature()
+  const assignPlan = useMasterAssignPlan()
+
+  if (isLoading) {
+    return (
+      <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2">
+        {[1, 2, 3].map((n) => <Skeleton key={n} className="h-7 w-full rounded-md" />)}
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-3">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Features & Plan</p>
+
+      {/* Plan selector */}
+      {plans && plans.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">Subscription plan</p>
+          <Select
+            onValueChange={(value) => {
+              const v = value as string | null
+              if (!v) return
+              assignPlan.mutate({ restaurantId, planId: v === 'none' ? null : v })
+            }}
+            disabled={assignPlan.isPending}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Assign a plan…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No plan (basic/free)</SelectItem>
+              {plans.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name.charAt(0).toUpperCase() + p.name.slice(1)} — {p.price === 0 ? 'Free' : `PKR ${p.price.toLocaleString()}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Feature toggles */}
+      <div className="space-y-2">
+        {(features ?? []).map((f) => (
+          <div key={f.feature_key} className="flex items-center justify-between gap-2">
+            <p className="text-xs font-medium">{FEATURE_LABELS[f.feature_key as FeatureKey] ?? f.feature_key}</p>
+            <Switch
+              checked={f.enabled}
+              onCheckedChange={(checked) =>
+                toggleFeature.mutate({
+                  restaurantId,
+                  featureKey: f.feature_key as FeatureKey,
+                  enabled: checked,
+                })
+              }
+              disabled={toggleFeature.isPending}
+            />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

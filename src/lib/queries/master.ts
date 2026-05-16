@@ -23,7 +23,10 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
-import type { Restaurant, RestaurantWithStats, AdminLog } from '@/lib/types'
+import type {
+  Restaurant, RestaurantWithStats, AdminLog,
+  SubscriptionPlan, RestaurantFeature, FeatureKey,
+} from '@/lib/types'
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -192,6 +195,97 @@ export function useMasterUpdateRestaurant() {
     onSuccess: (_, vars) => {
       logAction('update_restaurant', vars.updates as Record<string, unknown>, vars.id)
       qc.invalidateQueries({ queryKey: ['master'] })
+    },
+  })
+}
+
+// ─── SUBSCRIPTION PLANS ───────────────────────────────────────────────────────
+
+// All plans — used by master admin to populate the plan selector dropdown.
+export function useSubscriptionPlans() {
+  return useQuery({
+    queryKey: ['master', 'plans'],
+    queryFn: async (): Promise<SubscriptionPlan[]> => {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('subscription_plans')
+        .select('*')
+        .order('price', { ascending: true })
+      if (error) throw error
+      return (data ?? []) as SubscriptionPlan[]
+    },
+    staleTime: 60_000,
+  })
+}
+
+// Assigns a subscription plan to a restaurant. Passing null removes the plan.
+export function useMasterAssignPlan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ restaurantId, planId }: { restaurantId: string; planId: string | null }) => {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('restaurants')
+        .update({ plan_id: planId })
+        .eq('id', restaurantId)
+      if (error) throw error
+    },
+    onSuccess: (_, vars) => {
+      logAction('assign_plan', { plan_id: vars.planId }, vars.restaurantId)
+      qc.invalidateQueries({ queryKey: ['master'] })
+    },
+  })
+}
+
+// ─── FEATURE FLAGS ────────────────────────────────────────────────────────────
+
+// All feature rows for a single restaurant.
+export function useMasterRestaurantFeatures(restaurantId: string) {
+  return useQuery({
+    queryKey: ['master', 'features', restaurantId],
+    queryFn: async (): Promise<RestaurantFeature[]> => {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('restaurant_features')
+        .select('*')
+        .eq('restaurant_id', restaurantId)
+        .order('feature_key')
+      if (error) throw error
+      return (data ?? []) as RestaurantFeature[]
+    },
+    enabled: !!restaurantId,
+  })
+}
+
+// Toggle a single feature flag for a restaurant.
+// Logs the change to admin_logs with before/after snapshot.
+export function useMasterToggleFeature() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      restaurantId,
+      featureKey,
+      enabled,
+    }: {
+      restaurantId: string
+      featureKey: FeatureKey
+      enabled: boolean
+    }) => {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('restaurant_features')
+        .update({ enabled, updated_at: new Date().toISOString() })
+        .eq('restaurant_id', restaurantId)
+        .eq('feature_key', featureKey)
+      if (error) throw error
+    },
+    onSuccess: (_, vars) => {
+      logAction(
+        'toggle_feature',
+        { feature_key: vars.featureKey, enabled: vars.enabled },
+        vars.restaurantId,
+      )
+      qc.invalidateQueries({ queryKey: ['master', 'features', vars.restaurantId] })
     },
   })
 }

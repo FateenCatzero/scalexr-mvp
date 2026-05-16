@@ -221,3 +221,48 @@ export type PerformanceCounter =
   | 'orders_preparing'
   | 'orders_delivered'
   | 'orders_cancelled'
+
+// ─── FEATURE GATING ───────────────────────────────────────────────────────────
+
+// All feature flag keys tracked in restaurant_features.feature_key.
+export type FeatureKey =
+  | 'ar_view'
+  | '3d_view'
+  | 'analytics'
+  | 'theme_customization'
+  | 'inventory_tracking'
+  | 'staff_management'
+  | 'bulk_upload'
+
+// A complete map of feature keys to their enabled state for a single restaurant.
+// Passed from server components to client components via FeatureFlagsProvider.
+export type FeatureFlags = Record<FeatureKey, boolean>
+
+// A subscription tier row from subscription_plans.
+export type SubscriptionPlan = {
+  id: string
+  name: string
+  price: number
+  features: string[]
+  created_at: string
+}
+
+// A single feature flag row from restaurant_features.
+export type RestaurantFeature = {
+  id: string
+  restaurant_id: string
+  feature_key: FeatureKey
+  enabled: boolean
+  updated_at: string
+}
+
+// Branding and UI configuration for a restaurant, from restaurant_settings.
+export type RestaurantSettings = {
+  id: string
+  restaurant_id: string
+  logo_url: string | null
+  theme: Record<string, unknown>
+  dark_mode_enabled: boolean
+  allow_guest_checkout: boolean
+  updated_at: string
+}
