@@ -1,4 +1,6 @@
-// Server Component — fetches the restaurant row and renders StaffClient.
+// Server Component — fetches the restaurant row and current user ID, renders StaffClient.
+// currentUserId is passed so StaffClient can disable the role selector on the admin's
+// own card — preventing self-role-change which would lock out the staff list.
 // Auth is enforced by the parent layout at /admin/[restaurantSlug]/layout.tsx.
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
@@ -19,13 +21,12 @@ export default async function StaffPage({
     { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
   )
 
-  const { data: restaurant } = await supabase
-    .from('restaurants')
-    .select('id, name, slug')
-    .eq('slug', restaurantSlug)
-    .single()
+  const [{ data: restaurant }, { data: { user } }] = await Promise.all([
+    supabase.from('restaurants').select('id, name, slug').eq('slug', restaurantSlug).single(),
+    supabase.auth.getUser(),
+  ])
 
   if (!restaurant) redirect('/admin/login')
 
-  return <StaffClient restaurant={restaurant} />
+  return <StaffClient restaurant={restaurant} currentUserId={user?.id ?? ''} />
 }

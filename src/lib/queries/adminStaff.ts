@@ -72,7 +72,25 @@ export function useAddStaff(restaurantId: string) {
   })
 }
 
-// Changes a staff member's role. Only updates the role — is_active is unchanged.
+// Changes a staff member's role via the update_staff_role RPC.
+//
+// The RPC (not a direct table update) is required because:
+//   1. It updates BOTH restaurant_users.role AND users.role atomically.
+//      Updating only restaurant_users.role causes an infinite login redirect loop.
+//   2. It prevents an admin from changing their own role, which would remove
+//      the last restaurant_admin and make the staff list inaccessible to everyone.
+//   3. It enforces the admin-only auth check server-side (SECURITY DEFINER).
+//
+// RPC raises exceptions with these codes:
+//   'staff_not_found'        — restaurant_user_id doesn't exist
+//   'cannot_change_own_role' — admin attempted self-role-change (blocked in UI too)
+//   'unauthorized'           — caller is not admin for this restaurant
+const ROLE_ERROR_MESSAGES: Record<string, string> = {
+  staff_not_found:        'Staff member not found.',
+  cannot_change_own_role: 'You cannot change your own role.',
+  unauthorized:           'You do not have permission to change roles.',
+}
+
 export function useUpdateStaffRole(restaurantId: string) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -85,10 +103,15 @@ export function useUpdateStaffRole(restaurantId: string) {
     }) => {
       const supabase = createClient()
       const { error } = await supabase
-        .from('restaurant_users')
-        .update({ role })
-        .eq('id', restaurantUserId)
-      if (error) throw error
+        .rpc('update_staff_role', {
+          p_restaurant_user_id: restaurantUserId,
+          p_role:               role,
+        })
+      if (error) {
+        // Postgres RAISE EXCEPTION puts the message in error.message
+        const friendly = ROLE_ERROR_MESSAGES[error.message] ?? 'Failed to update role.'
+        throw new Error(friendly)
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['staff', restaurantId] })

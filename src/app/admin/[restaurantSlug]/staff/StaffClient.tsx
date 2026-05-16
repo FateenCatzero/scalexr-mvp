@@ -73,9 +73,13 @@ const ROLE_COLORS: Record<RestaurantRole, string> = {
 
 interface StaffClientProps {
   restaurant: { id: string; name: string; slug: string }
+  // The currently logged-in admin's user ID. Used to disable the role selector on
+  // the admin's own card — self-role-change is blocked server-side by update_staff_role
+  // RPC (raises 'cannot_change_own_role') but blocking it in the UI provides instant feedback.
+  currentUserId: string
 }
 
-export default function StaffClient({ restaurant }: StaffClientProps) {
+export default function StaffClient({ restaurant, currentUserId }: StaffClientProps) {
   const [search, setSearch]         = useState('')
   const [roleFilter, setRoleFilter] = useState<string>('all')
   const [onlineFilter, setOnlineFilter] = useState<string>('all')
@@ -185,6 +189,7 @@ export default function StaffClient({ restaurant }: StaffClientProps) {
               key={member.restaurant_user_id}
               member={member}
               restaurantId={restaurant.id}
+              isSelf={member.user_id === currentUserId}
             />
           ))}
         </div>
@@ -205,15 +210,18 @@ export default function StaffClient({ restaurant }: StaffClientProps) {
 function StaffCard({
   member,
   restaurantId,
+  isSelf,
 }: {
   member: StaffMember
   restaurantId: string
+  isSelf: boolean  // true when this card represents the currently logged-in admin
 }) {
   const online = isOnline(member.last_active_at)
   const updateRole   = useUpdateStaffRole(restaurantId)
   const toggleActive = useToggleStaffActive(restaurantId)
   const remove       = useRemoveStaff(restaurantId)
   const [confirmRemove, setConfirmRemove] = useState(false)
+  const [roleError, setRoleError] = useState<string | null>(null)
 
   return (
     <div
@@ -265,18 +273,19 @@ function StaffCard({
 
       {/* Actions */}
       <div className="flex flex-wrap gap-2 pt-1 border-t border-border">
-        {/* Change role */}
+        {/* Change role — disabled for the admin's own card to prevent self-lockout */}
         <Select
           value={member.role}
-          onValueChange={(role) =>
-            updateRole.mutate({
-              restaurantUserId: member.restaurant_user_id,
-              role: role as RestaurantRole,
-            })
-          }
-          disabled={updateRole.isPending}
+          onValueChange={(role) => {
+            setRoleError(null)
+            updateRole.mutate(
+              { restaurantUserId: member.restaurant_user_id, role: role as RestaurantRole },
+              { onError: (err) => setRoleError((err as Error).message) },
+            )
+          }}
+          disabled={updateRole.isPending || isSelf}
         >
-          <SelectTrigger className="h-7 text-xs flex-1 min-w-[110px]">
+          <SelectTrigger className="h-7 text-xs flex-1 min-w-[110px]" title={isSelf ? 'You cannot change your own role' : undefined}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -285,6 +294,9 @@ function StaffCard({
             <SelectItem value="restaurant_admin">Admin</SelectItem>
           </SelectContent>
         </Select>
+        {roleError && (
+          <p className="w-full text-xs text-destructive">{roleError}</p>
+        )}
 
         {/* Toggle active */}
         <Button

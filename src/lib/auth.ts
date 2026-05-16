@@ -153,15 +153,12 @@ export async function requireRestaurantAdminAccess(
     }
   }
 
-  // Hard gate: only restaurant_admin reaches the next check.
-  // waiter and kitchen are denied here regardless of restaurant_users contents.
-  if (profile.role !== 'restaurant_admin') return null
-
-  // restaurant_admin: must have a restaurant_users row with role='restaurant_admin'
-  // for the exact restaurant being accessed. The role='restaurant_admin' filter is
-  // critical — without it, a waiter who somehow has a restaurant_users entry would pass.
-  // Two-step lookup: get restaurant_id from restaurant_users, then fetch restaurant details.
-  // Avoids the embedded join which can fail when PostgREST's FK schema cache is stale.
+  // For non-master-admin users, check restaurant_users.role directly.
+  // We intentionally do NOT gate on users.role here — users.role can fall out of
+  // sync with restaurant_users.role (e.g. after a role change), and gating on it
+  // causes an infinite redirect loop: auth passes the users.role check but fails
+  // the restaurant_users check, redirecting to login, which redirects back, forever.
+  // The restaurant_users table is the single source of truth for restaurant access.
   const { data: ru } = await supabase
     .from('restaurant_users')
     .select('restaurant_id')
