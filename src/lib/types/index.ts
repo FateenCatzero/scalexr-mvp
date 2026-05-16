@@ -230,7 +230,6 @@ export type FeatureKey =
   | 'ar_view'
   | '3d_view'
   | 'analytics'
-  | 'theme_customization'
   | 'inventory_tracking'
   | 'staff_management'
   | 'bulk_upload'

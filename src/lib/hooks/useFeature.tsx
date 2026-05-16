@@ -21,13 +21,12 @@ import { createContext, useContext } from 'react'
 import type { FeatureKey, FeatureFlags } from '@/lib/types'
 
 const FeatureFlagsContext = createContext<FeatureFlags>({
-  ar_view:             false,
-  '3d_view':           false,
-  analytics:           false,
-  theme_customization: false,
-  inventory_tracking:  false,
-  staff_management:    false,
-  bulk_upload:         false,
+  '3d_view':          false,
+  ar_view:            false,
+  analytics:          false,
+  inventory_tracking: false,
+  staff_management:   false,
+  bulk_upload:        false,
 })
 
 // Wrap server-validated feature flags into React context.

@@ -17,13 +17,12 @@ import type { FeatureKey, FeatureFlags, SubscriptionPlan, RestaurantSettings } f
 
 // Default state when no feature row exists — everything off.
 const DEFAULT_FLAGS: FeatureFlags = {
-  ar_view:             false,
-  '3d_view':           false,
-  analytics:           false,
-  theme_customization: false,
-  inventory_tracking:  false,
-  staff_management:    false,
-  bulk_upload:         false,
+  '3d_view':          false,
+  ar_view:            false,
+  analytics:          false,
+  inventory_tracking: false,
+  staff_management:   false,
+  bulk_upload:        false,
 }
 
 // Returns true if the given feature is enabled for the restaurant.

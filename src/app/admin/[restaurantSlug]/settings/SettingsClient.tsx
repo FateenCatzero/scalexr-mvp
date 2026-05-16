@@ -27,13 +27,12 @@ import { createClient } from '@/lib/supabase/client'
 import type { Restaurant, FeatureFlags, RestaurantSettings, SubscriptionPlan, FeatureKey } from '@/lib/types'
 
 const FEATURE_LABELS: Record<FeatureKey, string> = {
-  ar_view:             'AR View',
-  '3d_view':           '3D View',
-  analytics:           'Analytics',
-  theme_customization: 'Theme Customization',
-  inventory_tracking:  'Inventory Tracking',
-  staff_management:    'Staff Management',
-  bulk_upload:         'Bulk Upload',
+  '3d_view':          '3D View',
+  ar_view:            'AR View',
+  analytics:          'Analytics',
+  inventory_tracking: 'Inventory Tracking',
+  staff_management:   'Staff Management',
+  bulk_upload:        'Bulk Upload',
 }
 
 const PLAN_COLORS: Record<string, string> = {
