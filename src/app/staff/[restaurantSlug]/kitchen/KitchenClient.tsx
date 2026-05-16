@@ -14,7 +14,7 @@ import { ChefHat } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import OrderCard from '@/components/staff/OrderCard'
 import { createClient } from '@/lib/supabase/client'
-import { useOrdersByStatus, useUpdateOrderStatus } from '@/lib/queries/staff'
+import { useOrdersByStatus, useUpdateOrderStatus, useStaffHeartbeat } from '@/lib/queries/staff'
 import type { Restaurant } from '@/lib/types'
 
 interface KitchenClientProps {
@@ -24,6 +24,10 @@ interface KitchenClientProps {
 export default function KitchenClient({ restaurant }: KitchenClientProps) {
   const queryClient = useQueryClient()
   const updateStatus = useUpdateOrderStatus()
+
+  // Heartbeat: updates last_active_at every 30s so the admin can see this
+  // kitchen staff as "online" in the staff management panel.
+  useStaffHeartbeat(restaurant.id)
 
   // "In progress" = actively being cooked; "queue" = waiting to be started.
   const { data: queue, isLoading: loadingQueue } = useOrdersByStatus(
@@ -98,7 +102,7 @@ export default function KitchenClient({ restaurant }: KitchenClientProps) {
                     label: 'Mark ready',
                     loading: updateStatus.isPending,
                     onClick: () =>
-                      updateStatus.mutate({ orderId: order.id, status: 'ready' }),
+                      updateStatus.mutate({ orderId: order.id, status: 'ready', restaurantId: restaurant.id }),
                   },
                 ]}
               />
@@ -132,7 +136,7 @@ export default function KitchenClient({ restaurant }: KitchenClientProps) {
                     label: 'Start preparing',
                     loading: updateStatus.isPending,
                     onClick: () =>
-                      updateStatus.mutate({ orderId: order.id, status: 'preparing' }),
+                      updateStatus.mutate({ orderId: order.id, status: 'preparing', restaurantId: restaurant.id }),
                   },
                 ]}
               />

@@ -20,7 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import OrderCard from '@/components/staff/OrderCard'
 import EditOrderDrawer from '@/components/staff/EditOrderDrawer'
 import { createClient } from '@/lib/supabase/client'
-import { useOrdersByStatus, useUpdateOrderStatus } from '@/lib/queries/staff'
+import { useOrdersByStatus, useUpdateOrderStatus, useStaffHeartbeat } from '@/lib/queries/staff'
 import type { Restaurant, OrderWithItems } from '@/lib/types'
 
 interface WaiterClientProps {
@@ -32,6 +32,10 @@ export default function WaiterClient({ restaurant }: WaiterClientProps) {
   const updateStatus = useUpdateOrderStatus()
   // null = drawer closed; OrderWithItems = drawer open for that specific order.
   const [editingOrder, setEditingOrder] = useState<OrderWithItems | null>(null)
+
+  // Heartbeat: updates last_active_at every 30s so the admin can see this
+  // waiter as "online" in the staff management panel.
+  useStaffHeartbeat(restaurant.id)
 
   // Three separate queries so each section shows its own loading skeleton.
   const { data: newOrders, isLoading: loadingNew } = useOrdersByStatus(
@@ -97,12 +101,12 @@ export default function WaiterClient({ restaurant }: WaiterClientProps) {
                 variant: 'danger',
                 loading: updateStatus.isPending,
                 requireConfirm: true,
-                onClick: () => updateStatus.mutate({ orderId: order.id, status: 'cancelled' }),
+                onClick: () => updateStatus.mutate({ orderId: order.id, status: 'cancelled', restaurantId: restaurant.id }),
               },
               {
                 label: 'Confirm',
                 loading: updateStatus.isPending,
-                onClick: () => updateStatus.mutate({ orderId: order.id, status: 'confirmed' }),
+                onClick: () => updateStatus.mutate({ orderId: order.id, status: 'confirmed', restaurantId: restaurant.id }),
               },
             ]}
           />
@@ -141,7 +145,7 @@ export default function WaiterClient({ restaurant }: WaiterClientProps) {
                 label: 'Mark delivered',
                 loading: updateStatus.isPending,
                 requireConfirm: true,
-                onClick: () => updateStatus.mutate({ orderId: order.id, status: 'delivered' }),
+                onClick: () => updateStatus.mutate({ orderId: order.id, status: 'delivered', restaurantId: restaurant.id }),
               },
             ]}
           />
@@ -152,6 +156,7 @@ export default function WaiterClient({ restaurant }: WaiterClientProps) {
         order={editingOrder}
         open={!!editingOrder}
         onClose={() => setEditingOrder(null)}
+        restaurantId={restaurant.id}
       />
     </div>
   )

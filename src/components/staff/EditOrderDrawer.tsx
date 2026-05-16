@@ -29,9 +29,10 @@ interface EditOrderDrawerProps {
   order: OrderWithItems | null
   open: boolean
   onClose: () => void
+  restaurantId: string
 }
 
-export default function EditOrderDrawer({ order, open, onClose }: EditOrderDrawerProps) {
+export default function EditOrderDrawer({ order, open, onClose, restaurantId }: EditOrderDrawerProps) {
   const updateItems = useUpdateOrderItems()
   const updateStatus = useUpdateOrderStatus()
 
@@ -61,7 +62,7 @@ export default function EditOrderDrawer({ order, open, onClose }: EditOrderDrawe
 
   const handleCancel = async () => {
     if (!order) return
-    await updateStatus.mutateAsync({ orderId: order.id, status: 'cancelled' })
+    await updateStatus.mutateAsync({ orderId: order.id, status: 'cancelled', restaurantId })
     onClose()
   }
 

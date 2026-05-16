@@ -190,3 +190,34 @@ export type AdminLog = {
   users?: { email: string } | null
   restaurants?: { name: string; slug: string } | null
 }
+
+// ─── STAFF SYSTEM ─────────────────────────────────────────────────────────────
+
+// Roles that appear in restaurant_users.role — excludes master_admin which
+// is a platform role stored in users.role only.
+export type RestaurantRole = 'restaurant_admin' | 'waiter' | 'kitchen'
+
+// A staff member as returned by the get_restaurant_staff() RPC.
+// Combines restaurant_users + users + staff_activity + staff_performance in one row.
+export type StaffMember = {
+  restaurant_user_id: string
+  user_id: string
+  email: string
+  full_name: string | null
+  role: RestaurantRole
+  is_active: boolean
+  // null when the staff member has never sent a heartbeat
+  last_active_at: string | null
+  // cumulative order counters
+  orders_confirmed: number
+  orders_preparing: number
+  orders_delivered: number
+  orders_cancelled: number
+}
+
+// Performance counter names used with increment_staff_performance() RPC.
+export type PerformanceCounter =
+  | 'orders_confirmed'
+  | 'orders_preparing'
+  | 'orders_delivered'
+  | 'orders_cancelled'
