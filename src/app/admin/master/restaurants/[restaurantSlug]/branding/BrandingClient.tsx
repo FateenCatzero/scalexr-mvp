@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/select'
 import { createClient } from '@/lib/supabase/client'
 import { useMasterSaveBranding } from '@/lib/queries/master'
+import { FONT_STACKS } from '@/lib/theme/buildCssVars'
 import type { Restaurant, RestaurantSettings } from '@/lib/types'
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -37,11 +38,13 @@ const BUTTON_STYLES = [
   { value: 'pill',    label: 'Pill' },
 ]
 
-const FONTS = [
-  { value: 'inter',   label: 'Inter (Default)' },
-  { value: 'georgia', label: 'Georgia (Serif)' },
-  { value: 'poppins', label: 'Trebuchet (Sans)' },
-  { value: 'mono',    label: 'Courier (Mono)' },
+// Each font entry includes its CSS stack so the SelectItem can render the
+// label text in the actual font — giving the user a live preview in the picker.
+const FONTS: { value: string; label: string; stack: string }[] = [
+  { value: 'inter',   label: 'Inter',    stack: FONT_STACKS.inter },
+  { value: 'georgia', label: 'Georgia',  stack: FONT_STACKS.georgia },
+  { value: 'poppins', label: 'Trebuchet', stack: FONT_STACKS.poppins },
+  { value: 'mono',    label: 'Courier',  stack: FONT_STACKS.mono },
 ]
 
 const BG_TYPES = [
@@ -243,10 +246,17 @@ export default function BrandingClient({
           <div className="space-y-1.5">
             <Label className="text-xs">Font</Label>
             <Select value={draft.font_family} onValueChange={(v) => v && patch('font_family')(v)}>
-              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8 text-sm">
+                {/* Show the current font name in its own typeface */}
+                <span style={{ fontFamily: FONT_STACKS[draft.font_family] ?? FONT_STACKS.inter }}>
+                  {FONTS.find((f) => f.value === draft.font_family)?.label ?? 'Inter'}
+                </span>
+              </SelectTrigger>
               <SelectContent>
                 {FONTS.map((f) => (
-                  <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                  <SelectItem key={f.value} value={f.value}>
+                    <span style={{ fontFamily: f.stack }}>{f.label}</span>
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
