@@ -17,7 +17,7 @@
 //   3. The success state shows the signup URL and the slug — the master admin
 //      shares these with the restaurant owner who signs up to create their admin account.
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -48,8 +48,7 @@ import {
   useMasterUpdateRestaurant,
   useMasterPlatformStats,
   useMasterRestaurantFeatures,
-  useMasterToggleFeature,
-  useMasterAssignPlan,
+  useMasterSavePlanAndFeatures,
   useSubscriptionPlans,
 } from '@/lib/queries/master'
 import type { RestaurantWithStats, FeatureKey } from '@/lib/types'
@@ -63,6 +62,11 @@ const FEATURE_LABELS: Record<FeatureKey, string> = {
   staff_management:    'Staff Management',
   bulk_upload:         'Bulk Upload',
 }
+
+const ALL_FEATURE_KEYS: FeatureKey[] = [
+  'ar_view', '3d_view', 'analytics',
+  'theme_customization', 'inventory_tracking', 'staff_management', 'bulk_upload',
+]
 
 const createSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -382,7 +386,7 @@ function RestaurantCard({ restaurant: r }: { restaurant: RestaurantWithStats }) 
 
       {/* Features panel */}
       {showFeatures && (
-        <FeaturesPanel restaurantId={r.id} />
+        <FeaturesPanel restaurantId={r.id} currentPlanId={r.plan_id ?? null} />
       )}
 
       {/* Stats row */}
@@ -443,13 +447,64 @@ function RestaurantCard({ restaurant: r }: { restaurant: RestaurantWithStats }) 
 
 // ─── FEATURES PANEL ───────────────────────────────────────────────────────────
 
-function FeaturesPanel({ restaurantId }: { restaurantId: string }) {
+type Snapshot = { planId: string | null; features: Record<string, boolean> }
+
+function FeaturesPanel({
+  restaurantId,
+  currentPlanId,
+}: {
+  restaurantId: string
+  currentPlanId: string | null
+}) {
   const { data: features, isLoading } = useMasterRestaurantFeatures(restaurantId)
   const { data: plans } = useSubscriptionPlans()
-  const toggleFeature = useMasterToggleFeature()
-  const assignPlan = useMasterAssignPlan()
+  const save = useMasterSavePlanAndFeatures()
 
-  if (isLoading) {
+  // baseline = last saved state. null while loading / after save (triggers re-init).
+  const [baseline, setBaseline] = useState<Snapshot | null>(null)
+  const [draftPlanId, setDraftPlanId] = useState<string | null>(currentPlanId)
+  const [draftFeatures, setDraftFeatures] = useState<Record<string, boolean>>({})
+
+  // Initialise draft from server data on first load (and after save invalidation).
+  useEffect(() => {
+    if (!features || baseline !== null) return
+    const map = Object.fromEntries(features.map((f) => [f.feature_key, f.enabled]))
+    setBaseline({ planId: currentPlanId, features: map })
+    setDraftPlanId(currentPlanId)
+    setDraftFeatures(map)
+  }, [features, baseline, currentPlanId])
+
+  const isDirty = useMemo(() => {
+    if (!baseline) return false
+    if (draftPlanId !== baseline.planId) return true
+    return ALL_FEATURE_KEYS.some((k) => (draftFeatures[k] ?? false) !== (baseline.features[k] ?? false))
+  }, [baseline, draftPlanId, draftFeatures])
+
+  const handlePlanChange = (value: string | null) => {
+    if (!value) return
+    const planId = value === 'none' ? null : value
+    setDraftPlanId(planId)
+    if (!planId) return // "No plan" — keep current feature overrides
+    const plan = plans?.find((p) => p.id === planId)
+    if (!plan) return
+    // Auto-apply plan features: enabled iff the plan's features[] includes the key.
+    setDraftFeatures(
+      Object.fromEntries(ALL_FEATURE_KEYS.map((k) => [k, plan.features.includes(k)]))
+    )
+  }
+
+  const handleSave = async () => {
+    await save.mutateAsync({ restaurantId, planId: draftPlanId, features: draftFeatures })
+    setBaseline(null) // lets useEffect re-init from fresh server data after invalidation
+  }
+
+  const handleCancel = () => {
+    if (!baseline) return
+    setDraftPlanId(baseline.planId)
+    setDraftFeatures(baseline.features)
+  }
+
+  if (isLoading || baseline === null) {
     return (
       <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2">
         {[1, 2, 3].map((n) => <Skeleton key={n} className="h-7 w-full rounded-md" />)}
@@ -461,26 +516,20 @@ function FeaturesPanel({ restaurantId }: { restaurantId: string }) {
     <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-3">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Features & Plan</p>
 
-      {/* Plan selector */}
+      {/* Plan selector — controlled, drives feature auto-fill */}
       {plans && plans.length > 0 && (
         <div className="space-y-1">
           <p className="text-xs text-muted-foreground">Subscription plan</p>
-          <Select
-            onValueChange={(value) => {
-              const v = value as string | null
-              if (!v) return
-              assignPlan.mutate({ restaurantId, planId: v === 'none' ? null : v })
-            }}
-            disabled={assignPlan.isPending}
-          >
+          <Select value={draftPlanId ?? 'none'} onValueChange={handlePlanChange}>
             <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Assign a plan…" />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">No plan (basic/free)</SelectItem>
               {plans.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
-                  {p.name.charAt(0).toUpperCase() + p.name.slice(1)} — {p.price === 0 ? 'Free' : `PKR ${p.price.toLocaleString()}`}
+                  {p.name.charAt(0).toUpperCase() + p.name.slice(1)} —{' '}
+                  {p.price === 0 ? 'Free' : `PKR ${p.price.toLocaleString()}`}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -488,25 +537,49 @@ function FeaturesPanel({ restaurantId }: { restaurantId: string }) {
         </div>
       )}
 
-      {/* Feature toggles */}
+      {/* Feature toggles — local draft only, persisted on Save */}
       <div className="space-y-2">
-        {(features ?? []).map((f) => (
-          <div key={f.feature_key} className="flex items-center justify-between gap-2">
-            <p className="text-xs font-medium">{FEATURE_LABELS[f.feature_key as FeatureKey] ?? f.feature_key}</p>
+        {ALL_FEATURE_KEYS.map((key) => (
+          <div key={key} className="flex items-center justify-between gap-2">
+            <p className="text-xs font-medium">{FEATURE_LABELS[key]}</p>
             <Switch
-              checked={f.enabled}
+              checked={draftFeatures[key] ?? false}
               onCheckedChange={(checked) =>
-                toggleFeature.mutate({
-                  restaurantId,
-                  featureKey: f.feature_key as FeatureKey,
-                  enabled: checked,
-                })
+                setDraftFeatures((prev) => ({ ...prev, [key]: checked }))
               }
-              disabled={toggleFeature.isPending}
             />
           </div>
         ))}
       </div>
+
+      {/* Save / Cancel — only visible when there are unsaved changes */}
+      {isDirty && (
+        <div className="flex gap-2 pt-2 border-t border-border">
+          <Button
+            size="sm"
+            className="flex-1 h-7 text-xs"
+            onClick={handleSave}
+            disabled={save.isPending}
+          >
+            {save.isPending ? 'Saving…' : 'Save'}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            onClick={handleCancel}
+            disabled={save.isPending}
+          >
+            Cancel
+          </Button>
+        </div>
+      )}
+
+      {save.isError && (
+        <p className="text-xs text-destructive">
+          {(save.error as Error)?.message ?? 'Failed to save. Try again.'}
+        </p>
+      )}
     </div>
   )
 }

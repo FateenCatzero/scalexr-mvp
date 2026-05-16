@@ -13,6 +13,7 @@ export type Restaurant = {
   logo_url: string | null
   theme: Record<string, unknown>
   is_active: boolean
+  plan_id: string | null
   created_at: string
   updated_at: string
 }

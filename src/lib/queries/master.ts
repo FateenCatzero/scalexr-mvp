@@ -290,6 +290,49 @@ export function useMasterToggleFeature() {
   })
 }
 
+// Saves both the plan assignment and all feature flags in a single atomic pair of
+// writes. Used by FeaturesPanel's Save button — replaces the per-toggle mutations
+// so the user can preview changes before committing.
+export function useMasterSavePlanAndFeatures() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      restaurantId,
+      planId,
+      features,
+    }: {
+      restaurantId: string
+      planId: string | null
+      features: Record<string, boolean>
+    }) => {
+      const supabase = createClient()
+      const featureRows = Object.entries(features).map(([feature_key, enabled]) => ({
+        restaurant_id: restaurantId,
+        feature_key,
+        enabled,
+        updated_at: new Date().toISOString(),
+      }))
+      const [planRes, featRes] = await Promise.all([
+        supabase.from('restaurants').update({ plan_id: planId }).eq('id', restaurantId),
+        supabase
+          .from('restaurant_features')
+          .upsert(featureRows, { onConflict: 'restaurant_id,feature_key' }),
+      ])
+      if (planRes.error) throw planRes.error
+      if (featRes.error) throw featRes.error
+    },
+    onSuccess: (_, vars) => {
+      logAction(
+        'save_features_and_plan',
+        { plan_id: vars.planId, features: vars.features },
+        vars.restaurantId,
+      )
+      qc.invalidateQueries({ queryKey: ['master', 'features', vars.restaurantId] })
+      qc.invalidateQueries({ queryKey: ['master', 'restaurants'] })
+    },
+  })
+}
+
 // ─── AUDIT LOGS ───────────────────────────────────────────────────────────────
 
 // Joins admin_logs with users (actor email) and restaurants (name, slug) in a
