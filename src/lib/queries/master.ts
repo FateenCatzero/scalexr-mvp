@@ -333,6 +333,34 @@ export function useMasterSavePlanAndFeatures() {
   })
 }
 
+// ─── BRANDING ─────────────────────────────────────────────────────────────────
+
+// Saves all branding + permission fields on a restaurant_settings row.
+// Called from the master admin branding page — master can write all fields.
+export function useMasterSaveBranding() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      restaurantId,
+      updates,
+    }: {
+      restaurantId: string
+      updates: Record<string, unknown>
+    }) => {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('restaurant_settings')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('restaurant_id', restaurantId)
+      if (error) throw error
+    },
+    onSuccess: (_, vars) => {
+      logAction('save_branding', {}, vars.restaurantId)
+      qc.invalidateQueries({ queryKey: ['master', 'restaurants'] })
+    },
+  })
+}
+
 // ─── AUDIT LOGS ───────────────────────────────────────────────────────────────
 
 // Joins admin_logs with users (actor email) and restaurants (name, slug) in a

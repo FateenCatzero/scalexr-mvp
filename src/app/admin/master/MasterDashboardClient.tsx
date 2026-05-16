@@ -23,7 +23,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   Plus, Power, PowerOff, Check, X, Store,
-  Users, CalendarPlus, ShoppingBag, Settings, LayoutDashboard, Zap,
+  Users, CalendarPlus, ShoppingBag, Settings, LayoutDashboard, Zap, Palette,
 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -56,6 +56,11 @@ import type { RestaurantWithStats, FeatureKey } from '@/lib/types'
 const FEATURE_LABELS: Record<FeatureKey, string> = {
   '3d_view':          '3D View',
   ar_view:            'AR View',
+  cart:               'Cart & Checkout',
+  ratings:            'Ratings & Reviews',
+  top_selling:        'Top Selling',
+  most_viewed:        'Most Viewed',
+  best_rated:         'Best Rated',
   analytics:          'Analytics',
   inventory_tracking: 'Inventory Tracking',
   staff_management:   'Staff Management',
@@ -63,7 +68,10 @@ const FEATURE_LABELS: Record<FeatureKey, string> = {
 }
 
 const ALL_FEATURE_KEYS: FeatureKey[] = [
-  '3d_view', 'ar_view', 'analytics',
+  '3d_view', 'ar_view',
+  'cart',
+  'ratings', 'top_selling', 'most_viewed', 'best_rated',
+  'analytics',
   'inventory_tracking', 'staff_management', 'bulk_upload',
 ]
 
@@ -422,6 +430,13 @@ function RestaurantCard({ restaurant: r }: { restaurant: RestaurantWithStats }) 
             className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors"
           >
             <LayoutDashboard className="w-3.5 h-3.5" /> Admin dashboard
+          </Link>
+          <Link
+            href={`/admin/master/restaurants/${r.slug}/branding`}
+            className="flex items-center justify-center gap-1.5 h-8 px-3 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors"
+            title="Branding"
+          >
+            <Palette className="w-3.5 h-3.5" />
           </Link>
           <button
             onClick={handleToggle}

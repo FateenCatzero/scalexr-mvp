@@ -227,8 +227,13 @@ export type PerformanceCounter =
 
 // All feature flag keys tracked in restaurant_features.feature_key.
 export type FeatureKey =
-  | 'ar_view'
   | '3d_view'
+  | 'ar_view'
+  | 'cart'
+  | 'ratings'
+  | 'top_selling'
+  | 'most_viewed'
+  | 'best_rated'
   | 'analytics'
   | 'inventory_tracking'
   | 'staff_management'
@@ -264,5 +269,23 @@ export type RestaurantSettings = {
   theme: Record<string, unknown>
   dark_mode_enabled: boolean
   allow_guest_checkout: boolean
+  // Branding — set by master admin
+  primary_color: string
+  secondary_color: string
+  accent_color: string
+  background_type: 'solid' | 'gradient' | 'image'
+  background_value: string
+  button_style: 'rounded' | 'square' | 'pill'
+  font_family: string
+  // Portal scope — which portals receive the restaurant's custom theme
+  customer_theme_enabled: boolean
+  admin_theme_enabled: boolean
+  waiter_theme_enabled: boolean
+  kitchen_theme_enabled: boolean
+  // Permissions — what the restaurant admin is allowed to self-edit
+  allow_logo_edit: boolean
+  allow_color_edit: boolean
+  allow_menu_edit: boolean
+  allow_feature_toggle_edit: boolean
   updated_at: string
 }

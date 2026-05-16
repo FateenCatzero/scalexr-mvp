@@ -10,11 +10,14 @@
 //   suspended restaurant → DENIED (is_active check in requireStaffAccess)
 //   unauthenticated → redirect to /admin/login
 //
-// To add a new staff role (e.g. 'manager') in the future:
-//   Add it to the StaffRole type in lib/auth.ts and to the allowedRoles array below.
+// Applies restaurant branding if waiter/kitchen theme is enabled for the
+// applicable portal — theme vars are injected server-side to avoid FOUC.
 
 import { redirect } from 'next/navigation'
 import { requireStaffAccess } from '@/lib/auth'
+import { getRestaurantSettings } from '@/lib/security/featureGating'
+import { buildCssVars } from '@/lib/theme/buildCssVars'
+import { createClient } from '@/lib/supabase/server'
 
 export default async function StaffLayout({
   children,
@@ -26,10 +29,21 @@ export default async function StaffLayout({
   const { restaurantSlug } = await params
 
   const session = await requireStaffAccess(restaurantSlug, ['waiter', 'kitchen'])
-
-  // Null means any failure — all cases redirect to login without distinguishing
-  // "not logged in" from "wrong role" to avoid leaking information about valid slugs.
   if (!session) redirect('/admin/login')
 
-  return <>{children}</>
+  const settings = await getRestaurantSettings(session.restaurantId)
+
+  // Apply the relevant portal theme based on the staff member's role.
+  const applyTheme =
+    session.role === 'waiter'
+      ? settings?.waiter_theme_enabled
+      : settings?.kitchen_theme_enabled
+
+  const themeVars = applyTheme && settings ? buildCssVars(settings) : {}
+
+  return (
+    <div style={themeVars as React.CSSProperties}>
+      {children}
+    </div>
+  )
 }

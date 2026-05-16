@@ -19,6 +19,11 @@ import type { FeatureKey, FeatureFlags, SubscriptionPlan, RestaurantSettings } f
 const DEFAULT_FLAGS: FeatureFlags = {
   '3d_view':          false,
   ar_view:            false,
+  cart:               false,
+  ratings:            false,
+  top_selling:        false,
+  most_viewed:        false,
+  best_rated:         false,
   analytics:          false,
   inventory_tracking: false,
   staff_management:   false,
