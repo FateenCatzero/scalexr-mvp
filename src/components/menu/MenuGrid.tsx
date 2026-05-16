@@ -1,5 +1,16 @@
 'use client'
 
+// MenuGrid — the main scrollable menu content below the restaurant header.
+// Renders horizontal category tabs, an optional "In stock only" filter toggle,
+// and a 2-column responsive grid of ItemCards.
+//
+// Category filtering is done server-side via the useMenuItems query — passing
+// a categoryId to the hook causes it to only fetch items in that category.
+// The "All" tab corresponds to selectedCategory === null, which fetches everything.
+//
+// The "In stock only" toggle only appears when at least one item is out of stock;
+// it filters entirely on the client without a second API call.
+
 import { useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import CategoryFilter from './CategoryFilter'
@@ -12,18 +23,21 @@ interface MenuGridProps {
 }
 
 export default function MenuGrid({ restaurant }: MenuGridProps) {
+  // null = "All" tab (no category filter), string = specific category UUID
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [inStockOnly, setInStockOnly] = useState(false)
 
   const { data: categories, isLoading: loadingCats } = useCategories(restaurant.id)
   const { data: allItems, isLoading: loadingItems } = useMenuItems(restaurant.id, selectedCategory)
 
+  // Only show the in-stock filter toggle if there's something to filter out.
   const hasOutOfStock = allItems?.some((i) => i.is_out_of_stock) ?? false
+  // Client-side filter — no re-fetch needed.
   const items = inStockOnly ? allItems?.filter((i) => !i.is_out_of_stock) : allItems
 
   return (
     <div className="pb-28">
-      {/* Category filter + in-stock toggle */}
+      {/* Category filter + in-stock toggle — sticky so it stays visible while scrolling */}
       <div className="py-3 sticky top-0 bg-background/95 backdrop-blur z-10 border-b border-border space-y-2">
         {loadingCats ? (
           <div className="flex gap-2 px-4">

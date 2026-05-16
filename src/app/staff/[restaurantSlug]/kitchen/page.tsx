@@ -1,3 +1,8 @@
+// Server Component — fetches the restaurant for the kitchen display.
+// Auth and role checks are handled by the parent layout at
+// /staff/[restaurantSlug]/layout.tsx — by the time this page runs, the user
+// is verified to have a valid staff role for this restaurant.
+
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import KitchenClient from './KitchenClient'

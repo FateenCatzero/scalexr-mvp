@@ -1,5 +1,10 @@
 'use client'
 
+// MasterControlBanner — amber warning banner shown at the top of the restaurant admin layout
+// when a master_admin is browsing a specific restaurant's admin area.
+// Reminds the master admin they are in "control" mode and provides a back link to /admin/master.
+// Not shown to regular restaurant_admin users.
+
 import Link from 'next/link'
 import { ShieldCheck, ArrowLeft } from 'lucide-react'
 

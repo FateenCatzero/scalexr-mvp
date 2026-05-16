@@ -1,5 +1,17 @@
 'use client'
 
+// ModelUpload — file picker for 3D model assets (GLB or USDZ).
+// Used in ItemForm for uploading/replacing/deleting model files.
+// Unlike ImageUpload, upload is done via a TanStack Query mutation (useUploadModel)
+// so the query cache is automatically invalidated after upload/delete.
+//
+// Two visual modes:
+//   - Default: a larger card with a heading, hint text, and a full-width drop zone.
+//   - Compact (compact=true): a denser layout for the BulkModels page where many
+//     items are shown in a table — same functionality, smaller footprint.
+//
+// Same dragCounter pattern as ImageUpload to prevent flicker during drag.
+
 import { useRef, useState } from 'react'
 import { Box, Trash2, Upload } from 'lucide-react'
 import { useUploadModel, useDeleteModel } from '@/lib/queries/admin'

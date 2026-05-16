@@ -1,5 +1,16 @@
 'use client'
 
+// OrderCard — a single order card used in WaiterClient and KitchenClient.
+// Renders the order summary (ID, status, table, customer, time, items, note)
+// and a row of action buttons defined by the `actions` prop.
+//
+// Action system:
+//   - Each action has a label, onClick handler, and optional variant (primary/secondary/danger).
+//   - Actions with `requireConfirm: true` show a confirmation row before executing —
+//     clicking the button once highlights it, clicking again dismisses the confirmation,
+//     and clicking the "Yes" confirm button in the row actually calls onClick().
+// This two-step confirmation prevents accidental cancellations or status changes.
+
 import { useState } from 'react'
 import { formatDistanceToNow, formatPrice } from '@/lib/utils'
 import StatusBadge from './StatusBadge'
@@ -20,12 +31,13 @@ interface OrderCardProps {
 }
 
 export default function OrderCard({ order, actions, onEdit }: OrderCardProps) {
+  // Tracks which action label is waiting for confirmation (null = none pending).
   const [confirmingLabel, setConfirmingLabel] = useState<string | null>(null)
 
   const handleActionClick = (action: Action) => {
     if (action.requireConfirm) {
       if (confirmingLabel === action.label) {
-        // Clicking the same button again dismisses the confirmation
+        // Second tap on same button dismisses confirmation instead of confirming.
         setConfirmingLabel(null)
         return
       }

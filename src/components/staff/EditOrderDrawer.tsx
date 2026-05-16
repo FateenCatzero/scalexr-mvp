@@ -1,5 +1,16 @@
 'use client'
 
+// EditOrderDrawer — bottom sheet opened by waiters to adjust quantities or cancel an order.
+// Only accessible via the "Edit" button on an OrderCard in WaiterClient.
+//
+// Quantity logic:
+//   - Local `quantities` state is a map of { [orderItemId]: quantity }.
+//   - Setting an item's quantity to 0 marks it for deletion (shown with strikethrough).
+//   - The "Save changes" button is disabled when quantities match the original values.
+//   - Saving calls useUpdateOrderItems which sends a separate PATCH for each changed item.
+//
+// Cancel logic: calls useUpdateOrderStatus directly with 'cancelled' — no per-item changes.
+
 import { useEffect, useState } from 'react'
 import { Minus, Plus } from 'lucide-react'
 import {
@@ -24,9 +35,12 @@ export default function EditOrderDrawer({ order, open, onClose }: EditOrderDrawe
   const updateItems = useUpdateOrderItems()
   const updateStatus = useUpdateOrderStatus()
 
+  // Local copy of quantities so the waiter can adjust without immediately mutating the order.
   const [quantities, setQuantities] = useState<Record<string, number>>({})
 
-  // Re-sync quantities whenever the order changes or drawer opens
+  // Re-initialise the local quantities whenever the drawer opens or a different order is selected.
+  // Keying on both `order?.id` and `open` ensures stale values don't persist if the same
+  // order is reopened after external changes.
   useEffect(() => {
     if (order) {
       setQuantities(
@@ -37,6 +51,7 @@ export default function EditOrderDrawer({ order, open, onClose }: EditOrderDrawe
 
   const handleSave = async () => {
     if (!order) return
+    // Sends all item updates — useUpdateOrderItems sends one PATCH per item sequentially.
     await updateItems.mutateAsync({
       orderId: order.id,
       itemUpdates: Object.entries(quantities).map(([id, quantity]) => ({ id, quantity })),
@@ -50,10 +65,12 @@ export default function EditOrderDrawer({ order, open, onClose }: EditOrderDrawe
     onClose()
   }
 
+  // Recalculates the total using the local (possibly edited) quantities.
   const total = order?.order_items.reduce((sum, item) => {
     return sum + (quantities[item.id] ?? 0) * item.unit_price
   }, 0) ?? 0
 
+  // True if any quantity differs from the original — gates the Save button.
   const hasChanges = order?.order_items.some((i) => quantities[i.id] !== i.quantity)
 
   return (

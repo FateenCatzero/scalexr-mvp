@@ -1,11 +1,16 @@
 'use client'
 
+// CartButton — floating action button fixed to the bottom of the screen.
+// Always visible while shopping; shows item count and total when cart has items,
+// or a muted empty-cart state when the cart is empty.
+// Tapping opens the CartSheet bottom drawer (controlled by the parent via `onClick`).
+
 import { ShoppingCart } from 'lucide-react'
 import { useCartStore } from '@/lib/store/cartStore'
 import { formatPrice } from '@/lib/utils'
 
 interface CartButtonProps {
-  restaurantSlug: string
+  restaurantSlug: string  // unused here but passed by callers for future navigation use
   onClick: () => void
 }
 
@@ -19,6 +24,7 @@ export default function CartButton({ onClick }: CartButtonProps) {
         onClick={onClick}
         className={[
           'w-full flex items-center justify-between rounded-2xl px-5 py-3.5 shadow-xl transition-all',
+          // Empty cart: subtle ghost style. Has items: solid black/white pill.
           itemCount === 0
             ? 'bg-foreground/8 border border-border text-muted-foreground'
             : 'bg-foreground text-background hover:opacity-90',

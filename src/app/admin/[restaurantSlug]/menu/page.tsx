@@ -1,3 +1,5 @@
+// Server Component — fetches the restaurant row and renders AdminMenuClient (the inline
+// menu editor). Auth is enforced by the parent layout at /admin/[restaurantSlug]/layout.tsx.
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'

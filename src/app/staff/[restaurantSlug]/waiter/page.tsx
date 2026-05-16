@@ -1,3 +1,10 @@
+// Server Component — fetches the restaurant for the waiter dashboard.
+// Auth and role checks are handled by the parent layout at
+// /staff/[restaurantSlug]/layout.tsx — by the time this page runs, the user
+// is verified to have a valid staff role for this restaurant.
+// Restaurant not found → 404 (slug mismatch after the layout passed means
+// the restaurant was just deactivated — rare but handled cleanly).
+
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import WaiterClient from './WaiterClient'

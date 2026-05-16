@@ -1,10 +1,18 @@
 'use client'
 
+// MasterLogsClient — audit trail of master admin actions (create, suspend, activate restaurants).
+// Reads from the `admin_logs` table, which is written to by the master queries on mutation.
+// Log entries include: action type, which admin performed it, which restaurant was affected,
+// an optional JSON payload, and a timestamp.
+// Colour-coded action badges: suspend = red, activate = primary, create = muted.
+
 import { ClipboardList } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMasterLogs } from '@/lib/queries/master'
 import type { AdminLog } from '@/lib/types'
 
+// Human-readable labels for known action types.
+// Falls back to the raw action string for any unrecognised actions.
 const ACTION_LABELS: Record<string, string> = {
   create_restaurant: 'Created restaurant',
   activate_restaurant: 'Activated restaurant',

@@ -1,5 +1,16 @@
 'use client'
 
+// OrdersSheet — bottom drawer listing all past orders placed at this restaurant.
+// Data flow:
+//   1. orderStore (localStorage) holds a list of order IDs the customer placed
+//      on this device, filtered to the current restaurant by restaurantSlug.
+//   2. useOrdersByIds fetches live data for those IDs from Supabase every 15 seconds
+//      (polling), so statuses stay current without requiring a page reload.
+//   3. Tapping an order row opens OrderDetailSheet with that order's ID.
+//
+// This sheet only shows orders from the current restaurant — if the customer visited
+// multiple restaurants on the same device, orders from other restaurants are hidden.
+
 import { useState } from 'react'
 import { ClipboardList, ChevronRight } from 'lucide-react'
 import {
@@ -40,11 +51,14 @@ const STATUS_COLOR: Record<OrderStatus, string> = {
 }
 
 export default function OrdersSheet({ open, onClose, restaurantSlug }: OrdersSheetProps) {
+  // selectedOrderId controls the nested OrderDetailSheet — null means it's closed.
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const { orders } = useOrderStore()
+  // Filter to only the orders placed at this specific restaurant on this device.
   const restaurantOrders = orders.filter((o) => o.restaurantSlug === restaurantSlug)
   const orderIds = restaurantOrders.map((o) => o.id)
 
+  // Fetches live status for all known order IDs via a batch query (polls every 15s).
   const { data: liveOrders, isLoading } = useOrdersByIds(orderIds)
 
   return (

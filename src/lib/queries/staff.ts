@@ -2,6 +2,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import type { OrderStatus, OrderWithItems } from '@/lib/types'
 
+// Fetches all orders for a restaurant that match any of the given statuses.
+// Orders are sorted oldest-first so staff process them in arrival order.
+// No staleTime set — refetches on focus and on Realtime events.
+// Used by both WaiterClient and KitchenClient to show their respective queues.
 export function useOrdersByStatus(
   restaurantId: string,
   statuses: OrderStatus[]
@@ -23,6 +27,9 @@ export function useOrdersByStatus(
   })
 }
 
+// Mutation to change an order's status. Used by both waiter and kitchen.
+// On success invalidates all 'orders' queries for the restaurant so all
+// dashboard sections (new/in-kitchen/ready) refresh simultaneously.
 export function useUpdateOrderStatus() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -46,6 +53,14 @@ export function useUpdateOrderStatus() {
   })
 }
 
+// Mutation to edit individual items within a pending order.
+// Used by the waiter's EditOrderDrawer before confirming an order.
+//
+// The update logic:
+//   - Items with quantity ≤ 0 are deleted from order_items
+//   - Items with quantity > 0 are updated with the new quantity
+//   - After all item changes, the order's total_amount is recalculated
+//     by summing the remaining items from the DB (source of truth)
 export function useUpdateOrderItems() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -58,6 +73,7 @@ export function useUpdateOrderItems() {
     }) => {
       const supabase = createClient()
 
+      // Split updates into deletions (qty=0) and modifications (qty>0)
       const toDelete = itemUpdates.filter((i) => i.quantity <= 0).map((i) => i.id)
       const toUpdate = itemUpdates.filter((i) => i.quantity > 0)
 
@@ -69,6 +85,8 @@ export function useUpdateOrderItems() {
         if (error) throw error
       }
 
+      // Update each remaining item individually (Supabase doesn't support
+      // bulk updates with different values per row in a single call)
       for (const { id, quantity } of toUpdate) {
         const { error } = await supabase
           .from('order_items')
@@ -77,7 +95,7 @@ export function useUpdateOrderItems() {
         if (error) throw error
       }
 
-      // Recalculate order total from remaining items
+      // Recalculate order total from remaining items after all changes
       const { data: remaining } = await supabase
         .from('order_items')
         .select('quantity, unit_price')

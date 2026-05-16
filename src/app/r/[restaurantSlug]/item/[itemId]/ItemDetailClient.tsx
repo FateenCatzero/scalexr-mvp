@@ -1,5 +1,19 @@
 'use client'
 
+// ItemDetailClient — full item detail page shown when a customer taps a menu card.
+// Renders a 2D image by default; the customer can toggle to a 3D model viewer
+// or launch AR depending on the device and available assets.
+//
+// Key behaviours:
+//   - ModelViewer is dynamically imported with `ssr: false` because <model-viewer>
+//     is a browser-only web component that cannot render on the server.
+//   - The GLB asset is preloaded via <link rel="preload"> as soon as the page opens
+//     so it's browser-cached when the user taps "View in 3D".
+//   - iOS AR uses <a rel="ar"> (Quick Look) with an invisible overlay trick because
+//     iOS requires <img> to be the ONLY child of the anchor element.
+//   - Android AR uses a Scene Viewer intent URL with &mode=ar_preferred.
+//   - The "Add to cart" button briefly shows a ✓ checkmark for 1.5 seconds after adding.
+
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
@@ -14,6 +28,8 @@ import { formatPrice } from '@/lib/utils'
 import type { MenuItemWithAssets } from '@/lib/types'
 import { trackEvent } from '@/lib/analytics'
 
+// Dynamic import prevents ModelViewer from being included in the server bundle.
+// The Skeleton placeholder ensures no layout shift during lazy load.
 const ModelViewer = dynamic(
   () => import('@/components/viewer/ModelViewer'),
   { ssr: false, loading: () => <Skeleton className="w-full h-72 rounded-xl" /> }
@@ -33,17 +49,22 @@ export default function ItemDetailClient({
   const [justAdded, setJustAdded] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
 
+  // Detect iOS on the client — navigator is not available during SSR.
+  // This determines which AR path to render (Quick Look vs Scene Viewer intent).
   useEffect(() => {
     setIsIOS(/iPhone|iPad|iPod/i.test(navigator.userAgent))
   }, [])
 
+  // Fire `item_view` analytics event once per mount.
   useEffect(() => {
     trackEvent(item.restaurant_id, 'item_view', { item_id: item.id, item_name: item.name })
   }, [item.id, item.name, item.restaurant_id])
 
+  // Find the GLB and USDZ assets from the item's asset list.
   const glbAsset = item.item_assets.find((a) => a.asset_type === 'model_glb')
   const usdzAsset = item.item_assets.find((a) => a.asset_type === 'model_usdz')
 
+  // Subscribe to only the specific cart fields needed — avoids re-renders on unrelated changes.
   const addItem = useCartStore((s) => s.addItem)
   const updateQuantity = useCartStore((s) => s.updateQuantity)
   const cartItem = useCartStore((s) =>
@@ -51,8 +72,9 @@ export default function ItemDetailClient({
   )
   const quantity = cartItem?.quantity ?? 0
 
-  // Preload the GLB as soon as the item page opens so it's browser-cached
-  // by the time the user taps "View in 3D"
+  // Preload the GLB via <link rel="preload"> so the browser starts downloading it
+  // immediately — by the time the user taps "View in 3D" it's already cached.
+  // The cleanup removes the link tag if the user navigates away before it finishes.
   useEffect(() => {
     if (!glbAsset?.public_url) return
     const link = document.createElement('link')
@@ -66,18 +88,22 @@ export default function ItemDetailClient({
     }
   }, [glbAsset?.public_url])
 
+  // Adds the item to cart and shows a brief "Added to cart ✓" confirmation.
   const handleAdd = () => {
     addItem(item)
     setJustAdded(true)
     setTimeout(() => setJustAdded(false), 1500)
   }
 
+  // Toggles between photo and 3D view; fires analytics only on entering 3D.
   const handleView3D = () => {
     const next = !show3D
     setShow3D(next)
     if (next) trackEvent(item.restaurant_id, '3d_view', { item_id: item.id, item_name: item.name })
   }
 
+  // Launches Android AR via Scene Viewer intent URL.
+  // `&mode=ar_preferred` skips the 3D fallback viewer and goes straight to AR.
   const handleARAndroid = () => {
     if (!glbAsset?.public_url) return
     trackEvent(item.restaurant_id, 'ar_view', { item_id: item.id, item_name: item.name })
@@ -92,7 +118,8 @@ export default function ItemDetailClient({
     window.location.href = intentUrl
   }
 
-  // Show AR button on iOS only if USDZ exists; Android only if GLB exists
+  // Show the AR button only when the correct asset exists for the platform:
+  // iOS requires a USDZ file for Quick Look; Android uses the GLB via Scene Viewer.
   const showAR = item.has_ar && (isIOS ? !!usdzAsset?.public_url : !!glbAsset?.public_url)
 
   return (
@@ -150,9 +177,15 @@ export default function ItemDetailClient({
 
           {showAR && (
             isIOS ? (
-              // iOS Quick Look requires <img> to be the ONLY child of <a rel="ar">.
-              // Extra siblings cause iOS to treat it as a regular link instead.
-              // Solution: visible button is a plain div; the anchor overlays it invisibly.
+              // iOS QUICK LOOK CONSTRAINT: Safari's <a rel="ar"> link only activates
+              // Quick Look when <img> is the direct and ONLY child of that anchor.
+              // Any extra sibling element (like a <span> or icon) causes iOS to ignore
+              // the `rel="ar"` attribute and treat it as a normal link.
+              //
+              // Workaround: render a visually styled div (non-interactive) as the visible
+              // button, then absolutely overlay the <a rel="ar"> on top of it. The anchor
+              // contains a transparent 1x1 GIF image (as a fallback if no item image
+              // exists) so the <img>-only constraint is satisfied.
               <div className="relative flex-1">
                 <div className="flex items-center justify-center gap-1.5 h-9 px-3 rounded-md border border-input bg-background text-sm font-medium pointer-events-none select-none">
                   <Scan className="w-4 h-4" />
@@ -164,6 +197,7 @@ export default function ItemDetailClient({
                   style={{ position: 'absolute', inset: 0 }}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {/* Transparent 1×1 GIF fallback — satisfies iOS Quick Look's img-only rule */}
                   <img
                     src={item.image_url ?? 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'}
                     alt=""

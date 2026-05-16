@@ -1,5 +1,11 @@
 'use client'
 
+// NewItemClient — creates a new menu item using the shared ItemForm component.
+// No ModelUpload is shown here because model upload requires an existing item ID
+// (the storage path and item_assets row both reference the item). After creation,
+// the admin is taken to the edit page or can upload models from the Edit item page.
+// On success, navigates to /admin/[slug]/menu to return to the menu list.
+
 import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import ItemForm, { type ItemFormValues } from '@/components/admin/ItemForm'

@@ -1,5 +1,10 @@
 'use client'
 
+// AdminNav — fixed bottom tab bar for the restaurant admin area.
+// Shows 5 tabs: Dashboard, Menu, Analytics, Tables, Settings, plus a Logout button.
+// Active state is determined by exact pathname match for Dashboard (to avoid
+// every tab highlighting when on the root admin page) and prefix match for all others.
+
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { LayoutDashboard, UtensilsCrossed, Settings, LogOut, BarChart2, QrCode } from 'lucide-react'
@@ -31,6 +36,8 @@ export default function AdminNav({ restaurantSlug }: AdminNavProps) {
     <nav className="fixed bottom-0 left-0 right-0 z-10 bg-background border-t border-border">
       <div className="max-w-lg mx-auto flex items-center">
         {tabs.map(({ label, href, icon: Icon }) => {
+          // Dashboard uses exact match; sub-pages use startsWith to keep the tab active
+          // while navigating within a section (e.g. /menu/new, /menu/[id]/edit).
           const active = href === `/admin/${restaurantSlug}`
             ? pathname === href
             : pathname.startsWith(href)

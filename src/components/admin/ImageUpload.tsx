@@ -1,5 +1,18 @@
 'use client'
 
+// ImageUpload — controlled image picker used in ItemForm.
+// Supports both click-to-browse and drag-and-drop.
+// Uploads immediately on file selection (fire-and-forget to Supabase Storage),
+// then calls `onChange` with the returned public URL so the parent form field is updated.
+//
+// Two visual states:
+//   - No image: a dashed drop zone with an ImagePlus icon.
+//   - Has image: the uploaded image fills the container with "×" (remove) and "Change" overlays.
+//     Drag-and-drop on the image shows a "Drop to replace" overlay.
+//
+// dragCounter tracks nested drag events (entering/leaving child elements) so isDragging
+// doesn't flicker when the pointer moves between children inside the drop zone.
+
 import { useRef, useState } from 'react'
 import { ImagePlus, Loader2, X } from 'lucide-react'
 import { uploadImage } from '@/lib/queries/admin'
@@ -15,6 +28,8 @@ export default function ImageUpload({ restaurantId, value, onChange }: ImageUplo
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  // dragCounter counts how many nested drag-enter events are active — prevents
+  // isDragging from flickering when moving between child DOM elements in the drop zone.
   const dragCounter = useRef(0)
 
   const processFile = async (file: File) => {
@@ -31,6 +46,7 @@ export default function ImageUpload({ restaurantId, value, onChange }: ImageUplo
       setError('Upload failed. Please try again.')
     } finally {
       setUploading(false)
+      // Reset the file input so the same file can be re-selected if needed.
       if (inputRef.current) inputRef.current.value = ''
     }
   }

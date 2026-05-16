@@ -1,11 +1,34 @@
 'use client'
 
+// master.ts — TanStack Query hooks for the master admin dashboard (/admin/master).
+// These hooks are only called from components inside the /admin/master layout,
+// which enforces role === 'master_admin' at the server level before rendering.
+//
+// Exported hooks:
+//   useMasterPlatformStats — platform-wide totals (restaurants, orders today, new this month)
+//   useMasterRestaurants   — all restaurants with per-restaurant order count and revenue
+//   useMasterCreateRestaurant — insert a new restaurant row + write an audit log entry
+//   useMasterToggleRestaurant — flip is_active on a restaurant + write audit log
+//   useMasterUpdateRestaurant — update name/description + write audit log
+//   useMasterLogs          — last 100 admin_logs rows with actor email and restaurant name joined
+//
+// All queries use the ['master', ...] query key namespace so useMasterCreateRestaurant's
+// qc.invalidateQueries({ queryKey: ['master'] }) invalidates all master queries at once.
+//
+// Audit logging is fire-and-forget (wrapped in try/catch that swallows errors) because
+// a logging failure should never block the actual mutation from completing.
+//
+// refetchInterval: 30_000 on list/stats queries keeps the dashboard live without Realtime
+// subscriptions — master admin actions are infrequent enough that polling is sufficient.
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import type { Restaurant, RestaurantWithStats, AdminLog } from '@/lib/types'
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
+// Fire-and-forget audit logger. Called from mutation onSuccess handlers AFTER the
+// main mutation succeeds. Errors are swallowed so they never surface to the user.
 async function logAction(
   action: string,
   payload: Record<string, unknown> = {},
@@ -30,6 +53,9 @@ export type PlatformStats = {
   newThisMonth: number
 }
 
+// Three parallel queries: all restaurants (filtered client-side for active count),
+// orders today (count-only), new restaurants this month (count-only).
+// Not split by restaurant — this is a global platform view.
 export function useMasterPlatformStats() {
   return useQuery({
     queryKey: ['master', 'stats'],
@@ -65,6 +91,10 @@ export function useMasterPlatformStats() {
 
 // ─── RESTAURANTS ──────────────────────────────────────────────────────────────
 
+// Fetches all restaurants and ALL orders in two parallel queries, then joins them
+// client-side to produce per-restaurant order counts and revenue totals.
+// This avoids a complex SQL aggregation and is acceptable at platform scale
+// (dozens of restaurants, not thousands) since the full orders table is read.
 export function useMasterRestaurants() {
   return useQuery({
     queryKey: ['master', 'restaurants'],
@@ -101,6 +131,9 @@ export function useMasterRestaurants() {
   })
 }
 
+// Creates a restaurant row with is_active=true. The slug must be globally unique
+// (Supabase will throw if it's taken). After creation, the master admin shares
+// the slug with the restaurant owner who uses it during signup to link their account.
 export function useMasterCreateRestaurant() {
   const qc = useQueryClient()
   return useMutation({
@@ -165,6 +198,11 @@ export function useMasterUpdateRestaurant() {
 
 // ─── AUDIT LOGS ───────────────────────────────────────────────────────────────
 
+// Joins admin_logs with users (actor email) and restaurants (name, slug) in a
+// single query using Supabase's PostgREST relationship syntax. The join columns
+// (actor_id → users.id, restaurant_id → restaurants.id) must be foreign keys in
+// the DB schema for this syntax to work without explicit hints.
+// Returns the 100 most recent entries — no pagination since audit volumes are low.
 export function useMasterLogs() {
   return useQuery({
     queryKey: ['master', 'logs'],

@@ -1,5 +1,14 @@
 'use client'
 
+// TablesClient — creates and manages table entries, each of which has a generated QR code.
+// Each table gets a unique URL: /r/[restaurantSlug]?table=[tableNumber].
+// When a customer scans the QR code, the table number is stored in the cart and pre-fills
+// the checkout form — the customer never has to type their table number.
+//
+// QR codes are rendered onto a <canvas> element using the `qrcode` npm package.
+// The TableRow component renders the canvas and provides a "Download PNG" button
+// that exports the canvas to a data URL and triggers a browser download.
+
 import { useState, useEffect, useRef } from 'react'
 import { Plus, Trash2, Download, QrCode } from 'lucide-react'
 import QRCode from 'qrcode'
@@ -80,6 +89,10 @@ export default function TablesClient({ restaurant }: { restaurant: Restaurant })
   )
 }
 
+// TableRow — renders a single table with its QR code and download button.
+// QR code generation happens in a useEffect after mount (browser-only API).
+// The download creates a temporary <a> element with the canvas PNG data URL
+// and programmatically clicks it — no server round-trip needed.
 function TableRow({
   table,
   restaurantSlug,
@@ -91,6 +104,7 @@ function TableRow({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [qrReady, setQrReady] = useState(false)
+  // The QR code encodes the full URL including the table number.
   const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/r/${restaurantSlug}?table=${encodeURIComponent(table.table_number)}`
 
   useEffect(() => {

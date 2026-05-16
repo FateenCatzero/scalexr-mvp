@@ -1,6 +1,12 @@
+// StatusBadge — coloured pill that shows the current order status.
+// Used in the staff dashboards (WaiterClient, KitchenClient) and AdminDashboardClient.
+// Each status maps to a distinct colour so staff can identify status at a glance.
+
 import { cn } from '@/lib/utils'
 import type { OrderStatus } from '@/lib/types'
 
+// Tailwind colour classes for each status — intentionally hardcoded rather than
+// computed to avoid Tailwind's purge removing unused dynamic class names.
 const STATUS_STYLES: Record<OrderStatus, string> = {
   pending:   'bg-yellow-100 text-yellow-800',
   confirmed: 'bg-blue-100 text-blue-800',

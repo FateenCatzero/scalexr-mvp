@@ -17,6 +17,8 @@ import { useCreateOrder } from '@/lib/queries/orders'
 import { useRestaurant } from '@/lib/queries/restaurant'
 import { formatPrice } from '@/lib/utils'
 
+// Zod schema for the checkout form — all three fields are validated here.
+// customerNote is optional; the rest are required.
 const schema = z.object({
   customerName: z.string().min(1, 'Name is required'),
   tableNumber: z.string().min(1, 'Table number is required'),
@@ -27,9 +29,22 @@ type FormData = z.infer<typeof schema>
 
 interface CheckoutClientProps {
   restaurantSlug: string
-  tableFromQR: string
+  tableFromQR: string  // pre-populated table number from the QR code URL param
 }
 
+// The "Place Order" page. Renders a form for the customer to confirm their
+// name, table number, and any special requests before submitting the order.
+//
+// RACE CONDITION FIX — `submitted` ref:
+// Without this fix, the following sequence would break the post-order flow:
+//   1. clearCart() is called → items becomes [] → useEffect fires
+//   2. useEffect sees items.length === 0 → calls router.replace('/r/slug')
+//      (no orderId in URL)
+//   3. router.push('/r/slug?orderId=xxx') also fires but loses the race
+//   Result: the menu page renders without the orderId, so the modal never opens.
+//
+// Fix: set submitted.current = true BEFORE calling clearCart(). The useEffect
+// is guarded by `!submitted.current`, so it won't fire after intentional submission.
 export default function CheckoutClient({
   restaurantSlug,
   tableFromQR,
@@ -39,6 +54,8 @@ export default function CheckoutClient({
   const addOrder = useOrderStore((s) => s.addOrder)
   const { data: restaurant } = useRestaurant(restaurantSlug)
   const createOrder = useCreateOrder()
+  // Tracks whether the order was intentionally submitted — prevents the empty-cart
+  // guard from navigating away after clearCart() clears items post-submission.
   const submitted = useRef(false)
 
   const {
@@ -47,15 +64,20 @@ export default function CheckoutClient({
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { tableNumber: tableFromQR },
+    defaultValues: { tableNumber: tableFromQR },  // pre-fill from QR code
   })
 
+  // If the customer navigates here with an empty cart (e.g. typed the URL manually
+  // or refreshed after already submitting), redirect them back to the menu.
+  // The `!submitted.current` guard ensures this does NOT fire after onSubmit
+  // calls clearCart() as part of the normal post-order cleanup.
   useEffect(() => {
     if (items.length === 0 && !submitted.current) router.replace(`/r/${restaurantSlug}`)
   }, [items.length, restaurantSlug, router])
 
   const onSubmit = async (data: FormData) => {
     if (!restaurant || items.length === 0) return
+    // Create the order in Supabase (inserts orders + order_items rows)
     const order = await createOrder.mutateAsync({
       restaurantId: restaurant.id,
       tableNumber: data.tableNumber,
@@ -63,13 +85,19 @@ export default function CheckoutClient({
       customerNote: data.customerNote ?? '',
       items,
     })
+    // Mark as submitted BEFORE clearCart() to prevent the guard useEffect
+    // from firing and overwriting the upcoming router.push with orderId.
     submitted.current = true
     clearCart()
+    // Persist the order ID locally so the "Orders" tab can show it later
     addOrder({ id: order.id, restaurantSlug, createdAt: order.created_at })
     toast.success('Order placed!')
+    // Navigate to the menu page with orderId in the URL — the server component
+    // forwards it as a prop which causes the order status modal to auto-open.
     router.push(`/r/${restaurantSlug}?orderId=${order.id}`)
   }
 
+  // Avoid flashing an empty cart state while the redirect useEffect fires
   if (items.length === 0) return null
 
   return (

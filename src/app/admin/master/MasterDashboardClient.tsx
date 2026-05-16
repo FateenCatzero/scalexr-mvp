@@ -1,5 +1,22 @@
 'use client'
 
+// MasterDashboardClient — the platform-level admin dashboard.
+// Shows platform-wide stats (total restaurants, active count, orders today, new this month)
+// and a list of all restaurants with per-restaurant order count and revenue.
+//
+// Actions per restaurant:
+//   - "Admin dashboard" link: navigates to /admin/[slug] as the master admin
+//     (the layout there shows the MasterControlBanner in this case).
+//   - Suspend/Activate toggle: sets is_active on the restaurant.
+//     Suspending requires a confirmation step (two clicks to prevent accidents).
+//   - Settings gear: inline form to edit restaurant name and description.
+//
+// Creating a new restaurant:
+//   1. Master admin fills in name (slug is auto-slugified from the name).
+//   2. useMasterCreateRestaurant inserts the restaurant row.
+//   3. The success state shows the signup URL and the slug — the master admin
+//      shares these with the restaurant owner who signs up to create their admin account.
+
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -25,8 +42,6 @@ import {
 } from '@/lib/queries/master'
 import type { RestaurantWithStats } from '@/lib/types'
 
-// ─── SCHEMA ───────────────────────────────────────────────────────────────────
-
 const createSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   slug: z
@@ -37,6 +52,7 @@ const createSchema = z.object({
 })
 type CreateValues = z.infer<typeof createSchema>
 
+// Auto-generates a URL-safe slug from the restaurant name as the admin types.
 const slugify = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 

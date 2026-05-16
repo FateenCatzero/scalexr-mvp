@@ -1,5 +1,11 @@
 'use client'
 
+// SettingsClient — lets the restaurant admin update their restaurant's name and description.
+// The slug is shown read-only (it cannot be changed after creation — changing it would
+// break existing QR codes and bookmarks).
+// After saving, the button briefly shows "Saved!" with a checkmark for 3 seconds.
+// The save button is disabled until the form is dirty (any field changed from saved values).
+
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'

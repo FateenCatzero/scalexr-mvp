@@ -1,5 +1,13 @@
 'use client'
 
+// ItemCard — a card in the 2-column menu grid.
+// Tapping the image or name navigates to the item detail page.
+// The bottom-right controls change based on cart state:
+//   - quantity === 0: a single "+" button to add
+//   - quantity > 0: inline −/+ quantity controls
+//   - is_out_of_stock: shows "Unavailable" text with no controls
+// 3D/AR badges are shown on the image overlay when available.
+
 import Link from 'next/link'
 import { Minus, Plus } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -15,6 +23,7 @@ interface ItemCardProps {
 export default function ItemCard({ item, restaurantSlug }: ItemCardProps) {
   const addItem = useCartStore((s) => s.addItem)
   const updateQuantity = useCartStore((s) => s.updateQuantity)
+  // Selector returns the cart entry for this specific item, or undefined if not in cart.
   const cartItem = useCartStore((s) =>
     s.items.find((i) => i.menuItem.id === item.id)
   )

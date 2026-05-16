@@ -1,5 +1,22 @@
 'use client'
 
+// BulkModelsClient — lets the admin upload 3D models for all menu items from one page,
+// instead of visiting each item's edit page individually.
+//
+// Data loading:
+//   - useAdminMenuItems fetches all items for the restaurant
+//   - useAllItemAssets fetches ALL item_assets rows in a single query (avoids N+1)
+//   - assetsByItem reduces the flat assets array into a map keyed by menu_item_id
+//     so each item card can do O(1) lookups for its GLB and USDZ assets
+//
+// Header shows a glbCount/usdzCount summary so the admin can see at a glance how
+// many models are uploaded platform-wide without expanding individual items.
+//
+// Each item card shows a status label: "3D + AR ready" / "3D ready · no iOS AR" /
+// "iOS AR only · no GLB" / "No models uploaded" — derived from which assets exist.
+// The two compact ModelUpload slots side by side (grid-cols-2) allow uploading or
+// deleting each format independently. compact prop renders a smaller UI.
+
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Box } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'

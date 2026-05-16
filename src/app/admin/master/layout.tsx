@@ -1,36 +1,23 @@
+// Master Admin Layout — auth guard for all /admin/master/* routes.
+// Only users with role === 'master_admin' in the users table are allowed through.
+// All other roles (including restaurant_admin, waiter, kitchen) are denied.
+// Auth logic is centralized in lib/auth.ts — no Supabase client is created here.
+
 import { redirect } from 'next/navigation'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import MasterNav from '@/components/admin/MasterNav'
+import { requireMasterAdmin } from '@/lib/auth'
 
 export default async function MasterAdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const cookieStore = await cookies()
+  const userId = await requireMasterAdmin()
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: () => {},
-      },
-    }
-  )
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/admin/login?returnTo=/admin/master')
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'master_admin') redirect('/admin/login')
+  // requireMasterAdmin returns null for: unauthenticated, wrong role, missing profile.
+  // All failure cases redirect to login — we don't distinguish between them to avoid
+  // leaking information about what accounts exist.
+  if (!userId) redirect('/admin/login?returnTo=/admin/master')
 
   return (
     <div className="min-h-screen bg-background">

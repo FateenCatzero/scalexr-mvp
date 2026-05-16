@@ -1,5 +1,16 @@
 'use client'
 
+// ResetPasswordPage — the landing page for password reset email links.
+// Flow:
+//   1. Admin requests a reset from the "Forgot password?" screen → Supabase emails a link.
+//   2. The link redirects here with a recovery token in the URL hash.
+//   3. Supabase's `onAuthStateChange` detects the PASSWORD_RECOVERY event, sets `ready = true`.
+//   4. The form is shown; the admin enters a new password.
+//   5. `supabase.auth.updateUser()` applies the new password using the recovery session.
+//   6. On success, redirects to /admin/login after 2 seconds.
+//
+// The page shows "Verifying reset link…" until the recovery token is exchanged for a session.
+
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'

@@ -1,5 +1,18 @@
 'use client'
 
+// WaiterClient — real-time dashboard for floor staff (waiters).
+// Organises orders into three sections:
+//   1. "New orders" (pending) — waiter can Confirm or Cancel
+//   2. "In kitchen" (confirmed + preparing) — read-only status display
+//   3. "Ready to deliver" (ready) — waiter can mark as Delivered
+//
+// Supabase Realtime (postgres_changes on the orders table) invalidates TanStack Query's
+// cache whenever any order changes for this restaurant — all three sections refresh
+// automatically without polling.
+//
+// The EditOrderDrawer allows adjusting quantities or cancelling a new order,
+// and is opened via the "Edit" button on a New Orders card.
+
 import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { ClipboardList } from 'lucide-react'
@@ -17,8 +30,10 @@ interface WaiterClientProps {
 export default function WaiterClient({ restaurant }: WaiterClientProps) {
   const queryClient = useQueryClient()
   const updateStatus = useUpdateOrderStatus()
+  // null = drawer closed; OrderWithItems = drawer open for that specific order.
   const [editingOrder, setEditingOrder] = useState<OrderWithItems | null>(null)
 
+  // Three separate queries so each section shows its own loading skeleton.
   const { data: newOrders, isLoading: loadingNew } = useOrdersByStatus(
     restaurant.id, ['pending']
   )
@@ -29,6 +44,9 @@ export default function WaiterClient({ restaurant }: WaiterClientProps) {
     restaurant.id, ['ready']
   )
 
+  // Subscribe to all order events for this restaurant.
+  // On any INSERT/UPDATE/DELETE, invalidate the ['orders', restaurant.id] query key
+  // so all three status sections re-fetch in parallel.
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase
@@ -139,6 +157,9 @@ export default function WaiterClient({ restaurant }: WaiterClientProps) {
   )
 }
 
+// Section — reusable collapsible section with a title, count badge, skeleton loader,
+// and empty-state message. Extracted to avoid repeating the same loading/empty logic
+// three times in the main component.
 function Section({
   title, count, loading, empty, children,
 }: {

@@ -1,3 +1,5 @@
+// Server Component — fetches the restaurant row and passes it to AnalyticsClient.
+// Auth is already enforced by the parent layout (/admin/[restaurantSlug]/layout.tsx).
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'

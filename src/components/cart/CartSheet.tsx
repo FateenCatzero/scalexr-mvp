@@ -1,5 +1,10 @@
 'use client'
 
+// CartSheet — bottom drawer that slides up when the cart button is tapped.
+// Renders the current cart items with quantity controls and a checkout button.
+// The table number from the cart store is forwarded to checkout via query param
+// so the checkout form field is pre-filled without needing to re-read the URL.
+
 import { useRouter } from 'next/navigation'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import {
@@ -23,6 +28,7 @@ export default function CartSheet({ open, onClose, restaurantSlug }: CartSheetPr
   const router = useRouter()
   const { items, updateQuantity, removeItem, getTotal, tableNumber } = useCartStore()
 
+  // Close the sheet first so it animates away before the navigation happens.
   const handleCheckout = () => {
     onClose()
     const qs = tableNumber ? `?table=${encodeURIComponent(tableNumber)}` : ''

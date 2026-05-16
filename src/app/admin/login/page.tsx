@@ -1,5 +1,26 @@
 'use client'
 
+// AdminLoginPage — unified auth page for the admin area.
+// Handles four distinct UI modes in a single component:
+//   - login: email + password sign-in
+//   - signup: create a new admin account (requires a pre-existing restaurant slug)
+//   - forgot: send a password reset email
+//   - verify: email confirmation waiting screen shown after signup
+//
+// Signup flow requires an existing restaurant slug created by a master_admin:
+//   1. Validates the slug exists in the `restaurants` table.
+//   2. Creates a Supabase Auth user.
+//   3. Inserts a `users` row (public profile, role = 'restaurant_admin').
+//   4. Inserts a `restaurant_users` row linking the new user to the restaurant.
+//   If Supabase email confirmation is enabled, shows the 'verify' screen instead of navigating.
+//
+// On login, after auth the user is routed:
+//   - master_admin → /admin/master (or returnTo param)
+//   - restaurant_admin → /admin/[their-slug] (or returnTo param)
+//
+// Suspense wrapper is required because useSearchParams() must run inside a Suspense boundary
+// (Next.js App Router requirement for client components that read search params).
+
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -25,6 +46,8 @@ const signupSchema = z.object({
 type LoginValues = z.infer<typeof loginSchema>
 type SignupValues = z.infer<typeof signupSchema>
 
+// Top-level export is a thin Suspense wrapper because useSearchParams() (used inside
+// AdminLoginInner) requires a Suspense boundary in the App Router.
 export default function AdminLoginPage() {
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><p className="text-sm text-muted-foreground">Loading…</p></div>}>
@@ -44,7 +67,8 @@ function AdminLoginInner() {
   const [resetEmail, setResetEmail] = useState('')
   const [verifiedEmail, setVerifiedEmail] = useState('')
 
-  // Detect email-verified redirect (?verified=1)
+  // Supabase redirects back to /admin/login?verified=1 after the user clicks the
+  // email confirmation link. Switch to login mode and show the verified banner.
   useEffect(() => {
     if (searchParams.get('verified') === '1') {
       setMode('login')
@@ -52,17 +76,19 @@ function AdminLoginInner() {
     }
   }, [searchParams])
 
-  // If user lands here already authenticated (e.g. after email confirmation link),
-  // redirect them to the correct admin area automatically.
+  // If the user already has a valid session (e.g. refreshed the page, or followed
+  // the email confirmation link), skip the form and redirect straight to their admin area.
+  // Uses getUser() — validates the JWT against Supabase Auth servers rather than reading
+  // from localStorage, which prevents a stale or manipulated token from triggering a redirect.
   useEffect(() => {
     const supabase = createClient()
     const returnTo = searchParams.get('returnTo')
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) return
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
       const { data: profile } = await supabase
         .from('users')
         .select('role')
-        .eq('id', session.user.id)
+        .eq('id', user.id)
         .single()
       if (profile?.role === 'master_admin') {
         router.push(returnTo ?? '/admin/master')
@@ -75,7 +101,7 @@ function AdminLoginInner() {
       const { data } = await supabase
         .from('restaurant_users')
         .select('restaurants(slug)')
-        .eq('user_id', session.user.id)
+        .eq('user_id', user.id)
         .single()
       const r = Array.isArray(data?.restaurants) ? data.restaurants[0] : data?.restaurants
       const slug = (r as { slug: string } | null)?.slug
@@ -139,17 +165,19 @@ function AdminLoginInner() {
 
     const returnTo = searchParams.get('returnTo')
 
+    // Master admin bypasses the restaurant lookup entirely.
     if (profile?.role === 'master_admin') {
       router.push(returnTo ?? '/admin/master')
       return
     }
 
-    // returnTo takes priority if it points to the right restaurant
+    // If the user was redirected here from a specific admin page, send them back.
     if (returnTo?.startsWith('/admin/')) {
       router.push(returnTo)
       return
     }
 
+    // Look up which restaurant this user owns and redirect to its admin page.
     const { data } = await supabase
       .from('restaurant_users')
       .select('restaurants(slug)')

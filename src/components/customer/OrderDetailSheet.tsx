@@ -1,5 +1,18 @@
 'use client'
 
+// OrderDetailSheet — modal dialog that shows live status for a specific order.
+// Opens automatically after checkout (when MenuPageClient receives confirmedOrderId)
+// and can also be opened manually from the OrdersSheet list.
+//
+// Differences from the full-page order status screen (/r/[slug]/order/[orderId]):
+//   - This is a Dialog overlay, not a standalone page
+//   - Uses 15-second polling via useOrder's refetchInterval, NOT Supabase Realtime
+//   - Status labels differ slightly (e.g. "Awaiting confirmation" vs "Order received")
+//   - Status colours are shown in text, not as a large icon
+//
+// Polling: useOrder is called with orderId ?? '' — when orderId is null (sheet closed),
+// the query is disabled so no requests fire in the background.
+
 import { CheckCircle2, Clock, ChefHat, Bell, Package } from 'lucide-react'
 import {
   Dialog,
@@ -18,6 +31,8 @@ interface OrderDetailSheetProps {
   onClose: () => void
 }
 
+// Status label text — intentionally different wording from the full-page status screen.
+// These are more compact and fit better in the dialog's smaller space.
 const STATUS_LABEL: Record<OrderStatus, string> = {
   pending: 'Awaiting confirmation',
   confirmed: 'Order confirmed',
@@ -27,6 +42,7 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   cancelled: 'Cancelled',
 }
 
+// Colour classes applied to the status text to give visual hierarchy at a glance.
 const STATUS_COLOR: Record<OrderStatus, string> = {
   pending: 'text-yellow-600',
   confirmed: 'text-blue-600',
@@ -36,6 +52,7 @@ const STATUS_COLOR: Record<OrderStatus, string> = {
   cancelled: 'text-destructive',
 }
 
+// Icon shown inside the circular avatar next to the status label.
 const STATUS_ICON: Record<OrderStatus, React.ComponentType<{ className?: string }>> = {
   pending: Clock,
   confirmed: CheckCircle2,
@@ -45,15 +62,20 @@ const STATUS_ICON: Record<OrderStatus, React.ComponentType<{ className?: string 
   cancelled: Clock,
 }
 
+// Progress steps in chronological order. `delivered` is the final state shown
+// in the progress bar; `cancelled` is handled separately (no bar shown).
 const PROGRESS_STEPS: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'ready', 'delivered']
 
 export default function OrderDetailSheet({ orderId, open, onClose }: OrderDetailSheetProps) {
+  // Pass empty string instead of null so the hook receives a valid (but disabled) key.
+  // useOrder will skip the fetch when orderId is falsy.
   const { data: order, isLoading } = useOrder(orderId ?? '')
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-sm w-full rounded-2xl">
         <DialogHeader>
+          {/* Show last 6 chars of UUID as a short order reference (e.g. #ABC123) */}
           <DialogTitle>
             {order ? `Order #${order.id.slice(-6).toUpperCase()}` : 'Order details'}
           </DialogTitle>
@@ -67,7 +89,7 @@ export default function OrderDetailSheet({ orderId, open, onClose }: OrderDetail
           </div>
         ) : order ? (
           <div>
-            {/* Status */}
+            {/* Status icon + label + table number */}
             <div className="flex items-center gap-3 mb-5">
               {(() => {
                 const Icon = STATUS_ICON[order.status]
@@ -87,7 +109,11 @@ export default function OrderDetailSheet({ orderId, open, onClose }: OrderDetail
               </div>
             </div>
 
-            {/* Progress bar */}
+            {/*
+              Progress bar — 4 segments (pending→confirmed→preparing→ready).
+              `delivered` is excluded from the bar (it's the 5th step that completes the journey).
+              Segments: solid = past, 40% opacity = current, muted = future.
+            */}
             {order.status !== 'cancelled' && (
               <div className="flex items-center gap-1.5 mb-6">
                 {PROGRESS_STEPS.slice(0, -1).map((s, i) => {
@@ -109,7 +135,7 @@ export default function OrderDetailSheet({ orderId, open, onClose }: OrderDetail
               </div>
             )}
 
-            {/* Items */}
+            {/* Line items — falls back to "Deleted item" if the menu item was removed */}
             <div className="space-y-2 mb-4">
               {order.order_items.map((item) => (
                 <div key={item.id} className="flex justify-between text-sm">
@@ -126,6 +152,7 @@ export default function OrderDetailSheet({ orderId, open, onClose }: OrderDetail
               <span>{formatPrice(Number(order.total_amount))}</span>
             </div>
 
+            {/* Extra patience message shown only while the order is still unconfirmed */}
             {order.status === 'pending' && (
               <p className="text-xs text-muted-foreground text-center mt-4 leading-relaxed">
                 A waiter will be with you in a moment to confirm your order, thank you for your patience.

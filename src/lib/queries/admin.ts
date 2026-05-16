@@ -1,3 +1,29 @@
+// admin.ts — all TanStack Query hooks used by the restaurant admin dashboard.
+//
+// Exported hooks by section:
+//   Stats:       useAdminStats — orders, revenue, active items, recent orders for a time period
+//   Categories:  useAdminCategories, useCreateCategory, useUpdateCategory, useDeleteCategory
+//   Menu items:  useAdminMenuItems, useCreateMenuItem, useUpdateMenuItem, useDeleteMenuItem
+//   Restaurant:  useUpdateRestaurant — name, description, logo_url
+//   Image:       uploadImage — plain async function (not a hook); uploads to Supabase Storage
+//   3D models:   useItemAssets, useAllItemAssets, useUploadModel, useDeleteModel
+//   Analytics:   useAnalytics — aggregates analytics_events client-side (event type counts, top items)
+//   Tables:      useRestaurantTables, useCreateTable, useDeleteTable (soft-delete via is_active=false)
+//
+// Key design decisions:
+//   - Admin and customer queries use separate query keys even when hitting the same table
+//     (e.g., 'admin-menu-items' vs 'menu-items') so an admin mutation invalidates both caches.
+//   - useUploadModel is a three-step operation: storage upload → item_assets upsert
+//     (onConflict: 'menu_item_id,asset_type' replaces any existing asset of the same type)
+//     → menu_items flag update (has_3d_model or has_ar = true).
+//   - useDeleteModel mirrors the same three steps in reverse: storage remove → item_assets
+//     delete → flag reset to false.
+//   - useDeleteTable does NOT hard-delete rows; it sets is_active=false. This preserves
+//     historical QR code scan data linked to old table records.
+//   - Analytics are aggregated entirely on the client from raw analytics_events rows.
+//     No server-side aggregation or RPC is used — simpler but limited to ~a few thousand
+//     events before it becomes slow. topItems is sorted by AR + 3D view count combined.
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import type { AnalyticsEvent, AssetType, Category, ItemAsset, MenuItem, Restaurant, RestaurantTable } from '@/lib/types'
@@ -6,6 +32,7 @@ import type { AnalyticsEvent, AssetType, Category, ItemAsset, MenuItem, Restaura
 
 export type StatPeriod = 'today' | 'week' | 'month'
 
+// Returns midnight of the period start: 'today' = start of today, 'week' = 7 days ago, 'month' = 30 days ago.
 function getPeriodStart(period: StatPeriod): Date {
   const d = new Date()
   if (period === 'today') {
@@ -20,6 +47,9 @@ function getPeriodStart(period: StatPeriod): Date {
   return d
 }
 
+// Four parallel queries: order count (head-only), revenue sum (full rows for reduce),
+// active menu item count (head-only), and last 10 recent orders for the dashboard table.
+// Cancelled orders are excluded from all counts using .neq('status', 'cancelled').
 export function useAdminStats(restaurantId: string, period: StatPeriod = 'today') {
   return useQuery({
     queryKey: ['admin-stats', restaurantId, period],
@@ -88,6 +118,8 @@ export function useAdminCategories(restaurantId: string) {
   })
 }
 
+// Invalidates both 'admin-categories' (admin view) and 'categories' (customer menu view)
+// so a new category appears immediately in both places without a page reload.
 export function useCreateCategory() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -242,6 +274,10 @@ export function useUpdateRestaurant() {
 
 // ─── IMAGE UPLOAD ─────────────────────────────────────────────────────────────
 
+// Plain async function, not a hook — called directly by ImageUpload's onChange handler
+// and inside ItemForm via the Controller render prop. Uploads to the 'restaurant-assets'
+// Supabase Storage bucket at path restaurants/{restaurantId}/menu/{timestamp}.{ext}.
+// Returns the CDN public URL that gets stored in menu_items.image_url.
 export async function uploadImage(
   restaurantId: string,
   file: File
@@ -259,6 +295,7 @@ export async function uploadImage(
 
 // ─── ITEM ASSETS (3D MODELS) ──────────────────────────────────────────────────
 
+// Fetches assets for a single item — used by EditItemClient and ItemDetailClient.
 export function useItemAssets(menuItemId: string) {
   return useQuery({
     queryKey: ['item-assets', menuItemId],
@@ -275,6 +312,8 @@ export function useItemAssets(menuItemId: string) {
   })
 }
 
+// Fetches ALL assets for a restaurant in a single query — used by BulkModelsClient
+// to build the assetsByItem lookup map without N+1 queries.
 export function useAllItemAssets(restaurantId: string) {
   return useQuery({
     queryKey: ['all-item-assets', restaurantId],
@@ -291,6 +330,13 @@ export function useAllItemAssets(restaurantId: string) {
   })
 }
 
+// Three-step mutation:
+//   1. Upload file to Storage at restaurants/{restaurantId}/models/{menuItemId}.{ext}
+//      — upsert:true overwrites any previously uploaded model at the same path
+//   2. Upsert a row in item_assets with onConflict: 'menu_item_id,asset_type'
+//      — ensures there is exactly one GLB and one USDZ row per item (replaces old record)
+//   3. Update menu_items flag: has_3d_model=true for GLB, has_ar=true for USDZ
+//      — these flags drive the "3D" and "AR" badges on ItemCard and ItemDetailClient
 export function useUploadModel() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -350,6 +396,10 @@ export function useUploadModel() {
   })
 }
 
+// Mirror of useUploadModel — three steps in reverse:
+//   1. Remove the file from Storage (storage.remove is best-effort; continues even if missing)
+//   2. Delete the item_assets row
+//   3. Reset the flag on menu_items (has_3d_model or has_ar back to false)
 export function useDeleteModel() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -384,6 +434,8 @@ export function useDeleteModel() {
 
 // ─── ANALYTICS ────────────────────────────────────────────────────────────────
 
+// getAnalyticsPeriodStart mirrors getPeriodStart above — kept separate so the two
+// period types (StatPeriod, AnalyticsPeriod) can evolve independently.
 export type AnalyticsPeriod = 'today' | 'week' | 'month'
 
 function getAnalyticsPeriodStart(period: AnalyticsPeriod): Date {
@@ -400,6 +452,11 @@ function getAnalyticsPeriodStart(period: AnalyticsPeriod): Date {
   return d
 }
 
+// Fetches raw analytics_events rows and aggregates them client-side.
+// Four parallel queries: events (with payload), order count, revenue, active item count.
+// Aggregation builds two maps: counts[event_type] for overall totals and itemCounts[itemId]
+// for per-item breakdown. topItems slices the top 10 by combined AR + 3D view count.
+// refetchInterval: 30s keeps the analytics page live without requiring a manual refresh.
 export function useAnalytics(restaurantId: string, period: AnalyticsPeriod = 'today') {
   return useQuery({
     queryKey: ['analytics', restaurantId, period],
@@ -476,6 +533,7 @@ export function useAnalytics(restaurantId: string, period: AnalyticsPeriod = 'to
 
 // ─── RESTAURANT TABLES ────────────────────────────────────────────────────────
 
+// Only returns active tables (.eq('is_active', true)) — soft-deleted tables are hidden.
 export function useRestaurantTables(restaurantId: string) {
   return useQuery({
     queryKey: ['restaurant-tables', restaurantId],
@@ -513,6 +571,8 @@ export function useCreateTable() {
   })
 }
 
+// Soft-delete: sets is_active=false rather than deleting the row. Preserves any
+// historical analytics events or order records referencing this table number.
 export function useDeleteTable() {
   const queryClient = useQueryClient()
   return useMutation({

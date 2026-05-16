@@ -1,5 +1,15 @@
 'use client'
 
+// AdminDashboardClient — the main admin landing page for a restaurant.
+// Shows three stat cards (orders, revenue, active items) for a selected time period,
+// plus a list of the most recent orders in that period.
+//
+// Period selector switches between today / last 7 days / last 30 days.
+// useAdminStats re-fetches automatically when the period changes.
+//
+// StatCard is a small helper component defined at the bottom of this file —
+// it accepts an icon, label, value, and optional `small` flag (smaller font for long values).
+
 import { useState } from 'react'
 import { TrendingUp, ShoppingBag, UtensilsCrossed } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'

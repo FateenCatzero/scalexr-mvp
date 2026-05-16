@@ -1,5 +1,14 @@
 'use client'
 
+// Dedicated full-page order status screen.
+// This is the shareable/bookmarkable URL for a specific order
+// (e.g. /r/demo/order/abc-123). It differs from the OrderDetailSheet modal
+// (which opens on the menu page after checkout) in two ways:
+//   1. It's a full page, not a dialog overlay
+//   2. It uses TRUE Supabase Realtime — an UPDATE event on the orders table
+//      instantly calls refetch(), so status changes appear immediately
+//      (the modal uses 15-second polling instead)
+
 import { useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { CheckCircle2, Clock, ChefHat, Bell, Package } from 'lucide-react'
@@ -11,6 +20,9 @@ import { createClient } from '@/lib/supabase/client'
 import { formatPrice } from '@/lib/utils'
 import type { OrderStatus } from '@/lib/types'
 
+// Configuration for each order status — determines the icon, label, and
+// descriptive text shown to the customer. Note: these labels differ slightly
+// from OrderDetailSheet (e.g. "Order received" vs "Awaiting confirmation").
 type StatusConfig = {
   label: string
   icon: React.ComponentType<{ className?: string }>

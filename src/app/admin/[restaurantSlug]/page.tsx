@@ -1,3 +1,8 @@
+// Server Component — fetches the restaurant for the admin dashboard.
+// The layout above already validated that the user is authenticated and authorised;
+// this page just fetches the full restaurant row and passes it to AdminDashboardClient.
+// Redirects to login if the restaurant lookup fails (e.g. the slug was deleted).
+
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'

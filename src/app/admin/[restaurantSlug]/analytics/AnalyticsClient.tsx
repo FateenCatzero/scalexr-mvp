@@ -1,5 +1,14 @@
 'use client'
 
+// AnalyticsClient — shows engagement metrics for the restaurant grouped by time period.
+// Metrics come from the analytics_events table (each trackEvent() call inserts a row).
+//
+// Seven metric cards: orders, revenue, active items, menu views, item views, 3D views, AR views.
+// The "Top items by AR & 3D" table shows which items got the most 3D/AR engagement.
+//
+// All data is fetched via useAnalytics — a single query that returns a pre-aggregated
+// object from the admin queries file.
+
 import { useState } from 'react'
 import { Eye, Box, Scan, ShoppingBag, TrendingUp, UtensilsCrossed } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'

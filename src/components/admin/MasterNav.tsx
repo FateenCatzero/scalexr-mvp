@@ -1,5 +1,9 @@
 'use client'
 
+// MasterNav — fixed bottom tab bar for the master admin area.
+// Only two tabs: Restaurants (list of all restaurants) and Logs (audit trail).
+// Active state uses exact pathname match since there's no deep nesting under these routes.
+
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { LayoutDashboard, ClipboardList, LogOut } from 'lucide-react'

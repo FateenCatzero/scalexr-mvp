@@ -1,5 +1,10 @@
 'use client'
 
+// CartPage — a dedicated full-page cart view at /r/[slug]/cart.
+// This page is an alternative to the CartSheet bottom-drawer.
+// Both show the same cart items and go to checkout; the page variant
+// is easier to link to directly (e.g. from a notification or QR).
+
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Minus, Plus, Trash2 } from 'lucide-react'
@@ -80,6 +85,7 @@ export default function CartPage() {
             <span>{formatPrice(getTotal())}</span>
           </div>
 
+          {/* Forward the stored tableNumber to checkout so the form is pre-filled */}
           <Button
             size="lg"
             className="w-full"

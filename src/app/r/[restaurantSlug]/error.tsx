@@ -1,5 +1,10 @@
 'use client'
 
+// Error boundary for the /r/[restaurantSlug] route segment.
+// Next.js automatically renders this component when an unhandled error is thrown
+// anywhere in the menu page tree (MenuPageClient, MenuGrid, etc.).
+// The `digest` field is a server-generated hash for correlating errors in server logs.
+
 export default function MenuError({
   error,
 }: {

@@ -1,3 +1,6 @@
+// Server Component — fetches both the restaurant and the specific menu item in parallel,
+// then passes them to EditItemClient. Redirects to the menu list if either is missing
+// (e.g., item was deleted or the slug/id don't belong to each other).
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'

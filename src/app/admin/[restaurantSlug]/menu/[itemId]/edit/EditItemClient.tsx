@@ -1,5 +1,17 @@
 'use client'
 
+// EditItemClient — full-page item editor. Combines the shared ItemForm (name, price,
+// description, photo, category, availability) with two ModelUpload slots (GLB and USDZ)
+// rendered below the form. Model upload is only available here (not on the New item page)
+// because the storage path and item_assets row both require an existing item ID.
+//
+// useItemAssets fetches existing GLB and USDZ records so each ModelUpload slot can
+// display the current model and offer a delete button if one already exists.
+//
+// On save, navigates back to /admin/[slug]/menu. The two are independent: saving item
+// details and uploading/deleting models are separate mutations that each invalidate
+// their own query keys without affecting each other.
+
 import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import ItemForm, { type ItemFormValues } from '@/components/admin/ItemForm'

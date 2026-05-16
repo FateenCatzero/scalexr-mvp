@@ -1,5 +1,24 @@
 'use client'
 
+// AdminMenuClient — the restaurant admin's menu management page.
+// Split into two tabs: "Items" (create/edit/delete menu items) and "Categories".
+// A link to the Bulk Models page is shown below both tabs.
+//
+// Architecture: items are edited inline (accordion expand), not on a separate page.
+// This lets the admin see all items at once and make multiple edits before saving.
+// The "Save all / Discard all" sticky bar appears when any item form is dirty.
+//
+// InlineItemForm — a shared form used for both creating new items and editing existing ones.
+//   - For existing items (itemId provided): registers submit/reset functions via callbacks
+//     so the parent ItemsTab can trigger "Save all" across all open forms simultaneously.
+//   - `isDirty` is tracked via onDirtyChange callback and reflected as a border highlight
+//     and "Unsaved" label on the accordion card.
+//   - Forms stay mounted even when the accordion is collapsed (hidden via CSS, not unmounted)
+//     so edits survive toggling the card open/closed.
+//
+// CategoriesTab — simpler accordion list with inline name editing.
+// Expanding a category card shows which items belong to it.
+
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useForm, Controller } from 'react-hook-form'
@@ -137,13 +156,17 @@ function InlineItemForm({
     defaultValues: savedDefaults,
   })
 
-  // Keep stable refs so parent can call submit/reset without stale closure
+  // Stable refs holding the current submit/reset functions.
+  // The parent calls these via the registered callbacks to trigger "Save all".
+  // Using refs (not state) prevents stale closures without triggering re-renders.
   const submitFnRef = useRef<() => void>(() => {})
   submitFnRef.current = () => handleSubmit(onSave)()
 
   const resetFnRef = useRef<(values?: ItemFormValues) => void>(() => {})
   resetFnRef.current = (values?: ItemFormValues) => reset(values ?? savedDefaults)
 
+  // Register this form's submit/reset functions with the parent when the item mounts.
+  // Unregister on unmount so stale references don't persist after deletion.
   useEffect(() => {
     if (!itemId) return
     onRegisterSubmit?.(() => submitFnRef.current())
@@ -374,8 +397,10 @@ function ItemsTab({ restaurant }: { restaurant: Restaurant }) {
   }
   const handleDirtyChange = (id: string, dirty: boolean) => {
     setDirtyIds((prev) => {
-      // Return same reference when nothing changes — prevents infinite re-render loop
-      // caused by the inline onDirtyChange prop changing reference on every render
+      // Return the SAME Set reference when nothing changed.
+      // Without this guard, the onDirtyChange callback (an inline prop) creates a new
+      // function reference on every render → triggers InlineItemForm's useEffect →
+      // calls onDirtyChange → updates dirtyIds → re-renders → infinite loop.
       if (dirty === prev.has(id)) return prev
       const n = new Set(prev)
       if (dirty) n.add(id); else n.delete(id)

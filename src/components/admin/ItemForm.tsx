@@ -1,5 +1,19 @@
 'use client'
 
+// ItemForm — the full-page form for creating and editing menu items.
+// Used by NewItemClient (add) and EditItemClient (edit). Both pass an onSubmit
+// callback so the form itself doesn't know about routing or which mutation to call.
+//
+// Fields: photo (via ImageUpload), name, description, price (PKR), category, is_available toggle.
+// NOTE: This form does NOT include is_out_of_stock — that toggle is only on the
+// inline editing form inside AdminMenuClient, where quick stock status changes
+// are made without opening a full edit page.
+// NOTE: Model upload (GLB/USDZ) is also NOT here — EditItemClient adds those slots
+// below the form since an item ID is required before a model can be uploaded.
+//
+// ImageUpload and the category Select use React Hook Form's Controller (controlled mode)
+// because they have non-standard onChange APIs. All other fields use register (uncontrolled).
+
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -101,7 +115,8 @@ export default function ItemForm({
         {errors.price && <p className="text-xs text-destructive">{errors.price.message}</p>}
       </div>
 
-      {/* Category */}
+      {/* Category — null maps to 'none' sentinel so the Select can represent "no category".
+          Selecting 'none' writes null back into the form (stored as category_id = null). */}
       <div className="space-y-1.5">
         <Label>Category <span className="text-muted-foreground">(optional)</span></Label>
         <Controller

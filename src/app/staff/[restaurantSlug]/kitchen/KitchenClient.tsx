@@ -1,5 +1,13 @@
 'use client'
 
+// KitchenClient — real-time kitchen display showing only the orders the kitchen cares about.
+// Two sections:
+//   1. "In progress" (preparing) — kitchen tapped "Start preparing"; can mark "ready"
+//   2. "Incoming queue" (confirmed) — waiter confirmed the order; kitchen can start it
+//
+// Supabase Realtime handles live updates (same postgres_changes pattern as WaiterClient).
+// The kitchen has no ability to edit or cancel orders — only to advance status.
+
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { ChefHat } from 'lucide-react'
@@ -17,6 +25,7 @@ export default function KitchenClient({ restaurant }: KitchenClientProps) {
   const queryClient = useQueryClient()
   const updateStatus = useUpdateOrderStatus()
 
+  // "In progress" = actively being cooked; "queue" = waiting to be started.
   const { data: queue, isLoading: loadingQueue } = useOrdersByStatus(
     restaurant.id,
     ['confirmed']
@@ -26,7 +35,7 @@ export default function KitchenClient({ restaurant }: KitchenClientProps) {
     ['preparing']
   )
 
-  // Real-time: refetch on any order change for this restaurant
+  // Subscribe to all order changes and invalidate the shared ['orders'] query key.
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase

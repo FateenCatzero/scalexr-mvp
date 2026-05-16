@@ -1,3 +1,5 @@
+// Server Component — fetches the restaurant row and renders TablesClient (QR code manager).
+// Auth is enforced by the parent layout; this page only verifies the restaurant exists.
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
